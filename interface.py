@@ -1,6 +1,6 @@
 from mpmath import mp
-import mpNbody
-from mpNbody import Local_Processor, MultiProcessor,AmuseProcessor,pp_Processor
+import mp_integrator
+from mp_integrator import Local_Processor, MultiProcessor,AmuseProcessor,pp_Processor
 import operator
 
 from amuse.community import *
@@ -31,8 +31,8 @@ class mpNbodyImplementation(object):
         return 0
     
     def initialize_code(self):
-        mpNbody.pproc=eval(self.processor)
-        self.integrator=mpNbody.error_controlled_BS()
+        mp_integrator.pproc=eval(self.processor)
+        self.integrator=mp_integrator.error_controlled_BS()
         self.integrator.time=self.time
         return 0  
 
@@ -42,7 +42,7 @@ class mpNbodyImplementation(object):
     def new_particle(self, index, mass,x, y, z, vx, vy, vz, radius):
         id_ = self.index_counter
         self.index_counter+=1
-        self.particles[id_]=mpNbody.particle(mass,x,y,z,vx,vy,vz)
+        self.particles[id_]=mp_integrator.particle(mass,x,y,z,vx,vy,vz)
         index.value=id_
         return 0
 
@@ -146,11 +146,11 @@ class mpNbodyImplementation(object):
         return 0    
 
     def get_potential_energy(self,e):
-        e.value=float(mpNbody.potential_energy(self.integrator.particles))
+        e.value=float(mp_integrator.potential_energy(self.integrator.particles))
         return 0
 
     def get_kinetic_energy(self,e):
-        e.value=float(mpNbody.kinetic_energy(self.integrator.particles))
+        e.value=float(mp_integrator.kinetic_energy(self.integrator.particles))
         return 0
 
 

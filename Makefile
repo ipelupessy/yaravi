@@ -7,7 +7,7 @@ CODE_GENERATOR = $(AMUSE_DIR)/build.py
 
 all:mpnbody_worker
 
-mpnbody_worker: interface.py mp_nbody.py
+mpnbody_worker: interface.py mp_integrator.py
 	$(CODE_GENERATOR) --type=py --mode=mpi -x amuse.community.mp_nbody.interface mpNbodyInterface mpNbodyImplementation -o $@
 	
 clean:
