@@ -3,10 +3,6 @@ import numpy
 import copy
 import cPickle
 
-from matplotlib import pyplot
-
-import itertools
-
 max_timestep=1000.
 
 class MultiProcessor(object):
