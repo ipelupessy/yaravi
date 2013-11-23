@@ -32,8 +32,8 @@ class mpNbodyImplementation(object):
     
     def initialize_code(self):
         mp_integrator.pproc=eval(self.processor)
-        self.integrator=mp_integrator.error_controlled_BS()
-        self.integrator.time=self.time
+        self.integrator=mp_integrator.error_controlled_BS(mp.mpf("1.e-17"))
+        self.integrator.time=self.model_time
         return 0  
 
     def commit_parameters(self):
