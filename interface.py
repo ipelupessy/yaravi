@@ -19,8 +19,17 @@ class mpNbodyImplementation(object):
     def __init__(self):
         self.particles=dict()
         self.index_counter=0
-        self.model_time=mp.mpf(0.)
+        self._time=mp.mpf(0.)
         self.processor="Local_Processor()"
+        self.timestep_parameter=mp.mpf('1.')
+
+    def set_timestep_parameter(self, eta):
+        self.timestep_parameter=eta
+        return 0
+    
+    def get_timestep_parameter(self,eta):
+        eta.value=self.timestep_parameter
+        return 0
       
     def set_processor(self, processor):
         self.processor=processor
@@ -29,11 +38,16 @@ class mpNbodyImplementation(object):
     def get_processor(self,processor):
         processor.value=self.processor
         return 0
+
+    def get_time(self,time):
+        time.value=float(self._time)
+        return 0
     
     def initialize_code(self):
         mp_integrator.pproc=eval(self.processor)
-        self.integrator=mp_integrator.floating_point_exact_BS()
-        self.integrator.time=self.model_time
+        self.integrator=mp_integrator.floating_point_exact_BS(dt_param=self.timestep_parameter)
+#        self.integrator=mp_integrator.error_controlled_BS(mp.mpf('1.e-16'),dt_param=self.timestep_parameter)        
+        self.integrator.time=self._time
         return 0  
 
     def commit_parameters(self):
@@ -134,6 +148,7 @@ class mpNbodyImplementation(object):
           self.integrator.evolve( mp.mpf(tend))
           for i,key in enumerate(sorted(self.particles.keys())):
             self.particles[key]=self.integrator.particles[i]
+          self._time=self.integrator.time
           return 0
         except:
           return -1

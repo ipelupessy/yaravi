@@ -445,7 +445,7 @@ class symmetric_composition(object):
     self.evolve_adapt(parts,dt)
       
 class bulirschStoer(object):  
-  def __init__(self,target_error, dt_param=mp.mpf('.125'), coeff=[1.], MAXLEVEL=64,jmax=64,rhombus=False,fixed_j=0):
+  def __init__(self,target_error, dt_param=mp.mpf('1.'), coeff=[1.], MAXLEVEL=64,jmax=64,rhombus=False,fixed_j=0):
     self.dt_param=dt_param
     self.dtmin=target_error
     self.target_error=target_error
