@@ -678,9 +678,11 @@ class error_controlled_BS(object):
       return maxdiv
 
 class floating_point_exact_BS(object):
-  def __init__(self,factor=1000,**kwargs):
+  def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,**kwargs):
+    self.dps_safety=4
     self.error_factor=factor
-    target_error=mp.mpf("1.e-16")
+    if -mp.log10(target_error) > mp.dps - self.dps_safety:
+      mp.dps*=2
     self.target_error1=target_error
     self.target_error2=target_error*factor
     self.integrator1=bulirschStoer(self.target_error1,**kwargs)
@@ -689,7 +691,6 @@ class floating_point_exact_BS(object):
     self.particles=[]
     self.checkpoint=[]
     self.checkpoint_time=self.time
-    self.dps_safety=10
     self.kwargs=kwargs
   def commit_particles(self):
     self.checkpoint=copy_particles(self.particles)
@@ -717,7 +718,7 @@ class floating_point_exact_BS(object):
       self.target_error1=self.target_error1/self.error_factor
       if -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
         mp.dps*=2
-      print "extending precision:",-mp.log10(self.target_error1),mp.dps  
+      print "extending precision:",float(-mp.log10(self.target_error1)),mp.dps  
       self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
       self.particles1=copy_particles(self.checkpoint)
       self.integrator1.evolve(self.particles1,tend-self.checkpoint_time)

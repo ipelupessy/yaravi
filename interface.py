@@ -13,7 +13,7 @@ from amuse.rfi.core import PythonCodeInterface
 #mpNbody.pproc=mpNbody.AmuseProcessor(hosts=["emphyrio"]*4,nbunch=32,preamble="from mpmath import mp",pre_pickle=True)
 #mpNbody.pproc=mpNbody.pp_Processor(nbunch=4,pre_pickle=True)
 
-mp.dps=64
+mp.dps=20
 
 class mpNbodyImplementation(object):
     def __init__(self):
