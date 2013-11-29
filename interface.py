@@ -8,11 +8,6 @@ from amuse.community.interface.gd import GravitationalDynamicsInterface
 from amuse.community.interface.gd import GravitationalDynamics
 from amuse.rfi.core import PythonCodeInterface
 
-#mpNbody.pproc=mpNbody.Local_Processor()
-#mpNbody.pproc=mpNbody.MultiProcessor(nbunch=4,pre_pickle=True)
-#mpNbody.pproc=mpNbody.AmuseProcessor(hosts=["emphyrio"]*4,nbunch=32,preamble="from mpmath import mp",pre_pickle=True)
-#mpNbody.pproc=mpNbody.pp_Processor(nbunch=4,pre_pickle=True)
-
 mp.dps=20
 
 class mpNbodyImplementation(object):
@@ -46,7 +41,6 @@ class mpNbodyImplementation(object):
     def initialize_code(self):
         mp_integrator.pproc=eval(self.processor)
         self.integrator=mp_integrator.floating_point_exact_BS(dt_param=self.timestep_parameter)
-#        self.integrator=mp_integrator.error_controlled_BS(mp.mpf('1.e-16'),dt_param=self.timestep_parameter)        
         self.integrator.time=self._time
         return 0  
 

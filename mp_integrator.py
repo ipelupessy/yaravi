@@ -482,7 +482,7 @@ class floating_point_exact_BS(object):
 
     error=self.error_function(self.particles1,self.particles2)
 
-    while not error:
+    while error:
 
       self.integrator2=self.integrator1
       self.particles2=self.particles1
@@ -503,13 +503,11 @@ class floating_point_exact_BS(object):
 
 
   def error_function(self,parts1,parts2):
-      result=True
       for i in range(len(parts1)):
-          result=(result and        
-             float(parts1[i].x)==float(parts2[i].x) and 
-             float(parts1[i].y)==float(parts2[i].y) and
-             float(parts1[i].z)==float(parts2[i].z) and
-             float(parts1[i].vx)==float(parts2[i].vx) and
-             float(parts1[i].vy)==float(parts2[i].vy) and
-             float(parts1[i].vz)==float(parts2[i].vz) )
-      return result
+        if ( float(parts1[i].x)!=float(parts2[i].x) or 
+             float(parts1[i].y)!=float(parts2[i].y) or
+             float(parts1[i].z)!=float(parts2[i].z) or
+             float(parts1[i].vx)!=float(parts2[i].vx) or
+             float(parts1[i].vy)!=float(parts2[i].vy) or
+             float(parts1[i].vz)!=float(parts2[i].vz) ): return True
+      return False
