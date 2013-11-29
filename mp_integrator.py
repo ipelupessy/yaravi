@@ -450,67 +450,6 @@ class bulirschStoer(object):
     self.init_evolve(parts)    
     self.evolve_adapt(parts,dt)
 
-class error_controlled_BS(object):
-  def __init__(self,target_error,factor=1000,**kwargs):
-    self.global_target_error=target_error
-    self.error_factor=factor
-    self.target_error1=target_error
-    self.target_error2=target_error*factor
-    self.integrator1=bulirschStoer(self.target_error1,**kwargs)
-    self.integrator2=bulirschStoer(self.target_error2,**kwargs)
-    self.time=mp.mpf(0.)
-    self.particles=[]
-    self.checkpoint=[]
-    self.checkpoint_time=self.time
-    self.dps_safety=10
-    self.kwargs=kwargs
-  def commit_particles(self):
-    self.checkpoint=copy_particles(self.particles)
-    self.particles1=self.particles
-    self.particles2=copy_particles(self.particles1)
-    self.checkpoint_time=self.time
-  def recommit_particles(self):
-    self.commit_particles()  
-  def evolve(self,tend):
-    dt=tend-self.time
-    
-    if dt<=0:
-      return
-    self.integrator1.evolve(self.particles1,dt)
-    self.integrator2.evolve(self.particles2,dt)
-
-    error=self.error_function(self.particles1,self.particles2)
-
-    while error > self.global_target_error:
-
-      self.integrator2=self.integrator1
-      self.particles2=self.particles1
-      self.target_error2=self.target_error1
- 
-      self.target_error1=self.target_error1/self.error_factor
-      if -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
-        mp.dps*=2
-      print "extending precision:",-mp.log10(self.target_error1),mp.dps  
-      self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
-      self.particles1=copy_particles(self.checkpoint)
-      self.integrator1.evolve(self.particles1,tend-self.checkpoint_time)
-      
-      error=self.error_function(self.particles1,self.particles2)
-
-    self.particles=self.particles1
-    self.time=tend
-
-  def error_function(self,parts1,parts2):
-      maxdiv=0.
-      for i in range(len(parts1)):
-        maxdiv=max( [maxdiv, abs(parts1[i].x-parts2[i].x),
-                             abs(parts1[i].y-parts2[i].y),
-        abs(parts1[i].z-parts2[i].z),
-        abs(parts1[i].vx-parts2[i].vx),
-        abs(parts1[i].vy-parts2[i].vy),
-        abs(parts1[i].vz-parts2[i].vz)])
-      return maxdiv
-
 class floating_point_exact_BS(object):
   def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,**kwargs):
     self.dps_safety=4
