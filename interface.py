@@ -164,7 +164,18 @@ class mpNbodyImplementation(object):
 
 
 class mpNbodyInterface(PythonCodeInterface,
-                     GravitationalDynamicsInterface):
+                     GravitationalDynamicsInterface, LiteratureReferencesMixIn):
+    """
+    mpNbody is a code to solve the astrophysical N-body problem guaranteed to
+    floating precision. It uses an python implementation of the Brutus solver
+    (Bulirsch-Stoer with adaptive timestepping). It has crude support for 
+    parallelization. Note that (re)commit_particles calls generate a checkpoint
+    in the code: the solution found is guaranteed to floating point precision from 
+    the last check point.
+
+    .. [#] based on Boekholt et al. 
+
+    """
 
     def __init__(self, **options):
         processor=options.pop("processor")
@@ -174,6 +185,7 @@ class mpNbodyInterface(PythonCodeInterface,
             mpNbodyImplementation,
             'mpnbody_worker',
             **options)
+        LiteratureReferencesMixIn.__init__(self)
         
         if processor:
           self.set_processor(processor)
