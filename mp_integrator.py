@@ -38,6 +38,7 @@ class MultiProcessor(object):
     for job in jobs:
       result[job.range[0]:job.range[1]]=job.get()
     return result
+  evaluate2=evaluate
 
 class AmuseProcessor(object):
   def __init__(self,hosts=[],preamble=None,nbunch=24,pre_pickle=True,channel_type="mpi",verbose=False):
@@ -66,6 +67,57 @@ class AmuseProcessor(object):
     while self.job_server.wait():
       job=self.job_server.last_finished_job
       result[job.range[0]:job.range[1]]=job.result
+    return result
+  def evaluate2(self,func, iparts,jparts,*args, **kwargs ):
+
+    ibunch=len(iparts)/2
+    jbunch=len(jparts)/2
+    
+    if self.pre_pickle:
+      orgfunc=(func,)
+      func=eval("pickled2"+func.__name__)
+    else:
+      orgfunc=()  
+    
+    ipart_sets=dict()
+    jpart_sets=dict()
+
+    if self.pre_pickle:
+      i,j=0,0
+      while i<len(iparts):
+        ipart_sets[i]=cPickle.dumps(iparts[i:i+ibunch],-1)
+        i=i+ibunch
+      while j<len(jparts):
+        jpart_sets[j]=cPickle.dumps(jparts[j:j+jbunch],-1)
+        j=j+jbunch
+    else:
+      i,j=0,0
+      while i<len(iparts):
+        ipart_sets[i]=iparts[i:i+ibunch]
+        i=i+ibunch
+      while j<len(jparts):
+        jpart_sets[j]=jparts[j:j+jbunch]
+        j=j+jbunch
+
+    i=0
+    while i<len(iparts):
+      j=0
+      while j<len(jparts):
+        job = self.job_server.submit_job(func,(ipart_sets[i],jpart_sets[j])+args,{})       
+        job.range=(i,min(i+ibunch,len(iparts)))
+        j=j+jbunch
+      i=i+ibunch
+
+    result=[None]*len(iparts)
+    while self.job_server.wait():
+      job=self.job_server.last_finished_job
+      for i in range(job.range[0],job.range[1]):
+        if result[i] is None:
+          result[i]=job.result[i-job.range[0]]
+        else:
+          result[i][0]+=job.result[i-job.range[0]][0]
+          result[i][1]+=job.result[i-job.range[0]][1]
+          result[i][2]+=job.result[i-job.range[0]][2]
     return result
     
 
@@ -119,12 +171,14 @@ class pp_Processor(object):
       result[job.range[0]:job.range[1]]=job()
       i=i+nbunch
     return result
+  evaluate2=evaluate
     
 class Local_Processor(object):
   def exec_(self,arg):
     pass
   def evaluate(self,func, iparts,*args, **kwargs):
     return func(iparts,*args)
+  evaluate2=evaluate
 
 global pproc
 pproc=None
@@ -221,16 +275,19 @@ def _kick(iparts,jparts,dt):
           ax-=dx*acci
           ay-=dy*acci
           az-=dz*acci
-      result.append((dt*ax,dt*ay,dt*az))
+      result.append([dt*ax,dt*ay,dt*az])
     return result
 
 def pickled_kick(iparts,jparts,dt):
   return _kick(iparts,cPickle.loads(jparts),dt)
 
+def pickled2_kick(iparts,jparts,dt):
+  return _kick(cPickle.loads(iparts),cPickle.loads(jparts),dt)
+
 def kick(iparts,jparts,dt):
   iparts_=[jparticle(x=x.x,y=x.y,z=x.z) for x in iparts]
   jparts_=[jparticle(m=x.m,x=x.x,y=x.y,z=x.z) for x in jparts]
-  result=pproc.evaluate(_kick, iparts_, jparts_,dt)
+  result=pproc.evaluate2(_kick, iparts_, jparts_,dt)
   for ipart,dv in zip(iparts, result):
     ipart.vx+=dv[0]
     ipart.vy+=dv[1]
