@@ -34,9 +34,10 @@ class MultiProcessor(object):
       job.range=(i,min(i+nbunch,len(iparts)))
       jobs.append(job)
       i=i+nbunch
+    result=[None]*len(iparts)
     for job in jobs:
-      iparts[job.range[0]:job.range[1]]=job.get()
-    return iparts
+      result[job.range[0]:job.range[1]]=job.get()
+    return result
 
 class AmuseProcessor(object):
   def __init__(self,hosts=[],preamble=None,nbunch=24,pre_pickle=True,channel_type="mpi",verbose=False):
@@ -61,10 +62,11 @@ class AmuseProcessor(object):
       job = self.job_server.submit_job(func,(iparts[i:i+nbunch],jparts)+args,{})       
       job.range=(i,min(i+nbunch,len(iparts)))
       i=i+nbunch
+    result=[None]*len(iparts)
     while self.job_server.wait():
       job=self.job_server.last_finished_job
-      iparts[job.range[0]:job.range[1]]=job.result
-    return iparts
+      result[job.range[0]:job.range[1]]=job.result
+    return result
     
 
 class pp_Processor(object):
@@ -112,11 +114,11 @@ class pp_Processor(object):
       job.range=(i,min(i+nbunch,len(iparts)))
       jobs.append(job)
       i=i+nbunch
+    result=[None]*len(iparts)
     for job in jobs:   
-      result=job()
-      iparts[job.range[0]:job.range[1]]=result
+      result[job.range[0]:job.range[1]]=job()
       i=i+nbunch
-    return iparts
+    return result
     
 class Local_Processor(object):
   def exec_(self,arg):
@@ -138,11 +140,9 @@ class particle(object):
     self.vz=mp.mpf(vz)
 
 class jparticle(object):
-  def __init__(self,m=0,x=0,y=0,z=0):
-    self.m=mp.mpf(m)
-    self.x=mp.mpf(x)
-    self.y=mp.mpf(y)
-    self.z=mp.mpf(z)
+  def __init__(self,**kwargs):
+    for key,value in kwargs.items():
+      setattr(self,key,mp.mpf(value))
   
 def Particles(N):
     return [particle() for i in range(N)]
@@ -173,6 +173,7 @@ def total_energy(parts):
     return kinetic_energy(parts)+potential_energy(parts)
 
 def _potential(iparts,jparts):
+    result=[]
     for ipart in iparts:
       phi=0.
       for jpart in jparts:
@@ -183,14 +184,16 @@ def _potential(iparts,jparts):
         if dr2>0:
           dr=mp.sqrt(dr2)
           phi-=jpart.m/dr
-      ipart.pot=phi       
-    return iparts
+      result.append(phi)       
+    return result
 
 def pickled_potential(iparts,jparts):
   return _potential(iparts,cPickle.loads(jparts))
 
 def potential(iparts,jparts):
-  return pproc.evaluate(_potential, iparts, jparts)
+  result=pproc.evaluate(_potential, iparts, jparts)
+  for ipart,pot in zip(iparts,result):
+    ipart.pot=pot
     
 def drift(parts,dt):
     for part in parts:
@@ -201,6 +204,7 @@ def drift(parts,dt):
     return parts  
 
 def _kick(iparts,jparts,dt):
+    result=[]
     for ipart in iparts:
       ax=0.
       ay=0.
@@ -217,25 +221,27 @@ def _kick(iparts,jparts,dt):
           ax-=dx*acci
           ay-=dy*acci
           az-=dz*acci
-      ipart.vx+=dt*ax       
-      ipart.vy+=dt*ay       
-      ipart.vz+=dt*az       
-    return iparts
+      result.append((dt*ax,dt*ay,dt*az))
+    return result
 
 def pickled_kick(iparts,jparts,dt):
   return _kick(iparts,cPickle.loads(jparts),dt)
 
 def kick(iparts,jparts,dt):
-  jparts=[jparticle(x.m,x.x,x.y,x.z) for x in jparts]
-  return pproc.evaluate(_kick, iparts, jparts,dt)
+  iparts_=[jparticle(x=x.x,y=x.y,z=x.z) for x in iparts]
+  jparts_=[jparticle(m=x.m,x=x.x,y=x.y,z=x.z) for x in jparts]
+  result=pproc.evaluate(_kick, iparts_, jparts_,dt)
+  for ipart,dv in zip(iparts, result):
+    ipart.vx+=dv[0]
+    ipart.vy+=dv[1]
+    ipart.vz+=dv[2]
 
 def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
     sqrt2=mp.sqrt(2.)
+    result=[]
     for ipart in iparts:
       timestep=max_timestep
       for jpart in jparts:
-        if ipart==jpart:
-          continue
         dx=ipart.x-jpart.x  
         dy=ipart.y-jpart.y
         dz=ipart.z-jpart.z
@@ -264,16 +270,16 @@ def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
             tau/=(1-dtau/2)          
             if tau< timestep:
               timestep=tau
-      if timestep < ipart.timestep:
-        ipart.timestep=timestep
-    return iparts
+      result.append(timestep)
+    return result
 
 def pickled_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
   return _timestep(iparts,cPickle.loads(jparts), dt_param, rarvratio=rarvratio,max_timestep=max_timestep)
 
-
 def timestep(iparts,jparts,dt_param, rarvratio=1.,max_timestep=max_timestep):
-  return pproc.evaluate(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
+  result=pproc.evaluate(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
+  for ipart,timestep in zip(iparts,result):
+    ipart.timestep=timestep
 
 def global_timestep(parts):
   return reduce(lambda x,y: min(x,y.timestep),parts,max_timestep)
