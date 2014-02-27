@@ -165,17 +165,21 @@ def ec_BS_test():
 
     print parts[0].x
 
-def time_kick(N=16):
+def time_kick(N=16,processor="local"):
     import time
     from mp_integrator import kick
 
     nproc=4
     nbunch=N/nproc
 
-#    mp_integrator.pproc=MultiProcessor(nbunch=nbunch,pre_pickle=True,nproc=nproc)
-#    mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nbunch=nbunch,preamble="from mpmath import mp",pre_pickle=True)
-    mp_integrator.pproc=pp_Processor(nbunch=nbunch,pre_pickle=True)
-#    mp_integrator.pproc=Local_Processor()
+    if processor=="multi":
+      mp_integrator.pproc=MultiProcessor(nbunch=nbunch,pre_pickle=True,nproc=nproc)
+    elif processor=="amuse":
+      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nbunch=nbunch,preamble="from mpmath import mp",pre_pickle=True)
+    elif processor=="pp":
+      mp_integrator.pproc=pp_Processor(nbunch=nbunch,pre_pickle=True)
+    else:
+      mp_integrator.pproc=Local_Processor()
 
     mp.dps=64
     mp_integrator.pproc.exec_("mp.dps="+str(mp.dps))
@@ -184,21 +188,27 @@ def time_kick(N=16):
 
     dt=mp.mpf(1)/mp.mpf(8)
     
-    print parts[0].vx
-
     t1=time.time()
     kick(parts,parts,dt)
     t2=time.time()
 
-    print parts[0].vx
-    print t2-t1
+    print "time:",t2-t1
+    return hash(parts[-1].vz)
     
-
+def check_kick(N=16):
+    hashes={ 16: 1762445124, 64: -3541374424,256:-2250164681, 512: 2466512669}
+    for p in ["multi","amuse","pp","local"]:
+      h=hash(time_kick(N=N,processor=p))
+      if hashes[N]==h:
+        print p+" ok"
+      else:
+        print p+" nook:", h
 
 if __name__=="__main__":
 #    import cProfile
 #    cProfile.run('BS_test()','prof')
-    check_BS_test(N=16)
+#    check_BS_test(N=16)
 #    from mp_integrator_test import BS_test
-#     ec_BS_test()
-#    time_kick(512)
+     BS_test(N=64,processor="amuse")
+#     check_kick(N=512)
+#     time_kick(N=256,processor="amuse")
