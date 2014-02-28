@@ -2,6 +2,7 @@ from mpmath import mp
 import numpy
 import copy
 import cPickle
+from collections import deque
 
 max_timestep=1000.
 
@@ -14,60 +15,15 @@ def fsmrt(N):
 
 ceil=lambda x,y: (x/y+(x%y>0))
 
-class MultiProcessor(object):
-  def __init__(self,preamble=None,nslices=None,pre_pickle=True,nproc=4):
-    from multiprocessing import Pool
-    self.preamble=preamble
-    if nslices is None: nslices=nproc
-    self.nslices=nslices
-    self.pre_pickle=pre_pickle
-    self.pool=Pool(processes=nproc)
-    self.nproc=nproc
-  def exec_(self,arg):
-    from multiprocessing import Pool
-    self.pool.close()
-    self.pool.join()
-    exec arg
-    self.pool=Pool(processes=self.nproc)
-  def evaluate(self,func, iparts,jparts,*args, **kwargs ):
-    nbunch=kwargs.get('nbunch', ceil(len(iparts), self.nslices))
-    print nbunch
-    if self.pre_pickle:
-      jparts=cPickle.dumps(jparts,-1)
-      orgfunc=(func,)
-      func=eval("pickled"+func.__name__)
-    else:
-      orgfunc=()  
-    jobs=[]
-    i=0
-    while i<len(iparts): 
-      job = self.pool.apply_async(func,(iparts[i:i+nbunch],jparts)+args)       
-      job.range=(i,min(i+nbunch,len(iparts)))
-      jobs.append(job)
-      i=i+nbunch
-    result=[None]*len(iparts)
-    for job in jobs:
-      result[job.range[0]:job.range[1]]=job.get()
-    return result
-  evaluate2=evaluate
-
-class AmuseProcessor(object):
-  def __init__(self,hosts=[],preamble=None,nslices=None,nblocks=None,pre_pickle=True,channel_type="mpi",verbose=False):
-    from amuse.ext.job_server import JobServer
-    self.preamble=preamble
-    if nslices is None: nslices=len(hosts)
+class ParallelProcessor(object):
+  def __init__(self,nslices,nblocks=None):
     self.nslices=nslices
     if nblocks is None: 
-      nblocks=len(hosts)
-      n=fsmrt(nblocks)
-      ijblocks=(n,nblocks/n)
+      nblocks=nslices
+    n=fsmrt(nblocks)
+    ijblocks=(n,nblocks/n)
     self.nblocks=nblocks
     self.ijblocks=ijblocks
-    self.pre_pickle=pre_pickle
-    self.amuse_servers=hosts
-    self.job_server=JobServer(self.amuse_servers, channel_type=channel_type,preamble=self.preamble,verbose=verbose)
-  def exec_(self,arg):
-    self.job_server.exec_(arg)
   def evaluate(self,func, iparts,jparts,*args, **kwargs ):
     nbunch=kwargs.get('nbunch', ceil(len(iparts),self.nslices))
     if self.pre_pickle:
@@ -78,12 +34,12 @@ class AmuseProcessor(object):
       orgfunc=()  
     i=0
     while i<len(iparts): 
-      job = self.job_server.submit_job(func,(iparts[i:i+nbunch],jparts)+args,{})       
+      job = self.submit_job(func,(iparts[i:i+nbunch],jparts)+args,{})       
       job.range=(i,min(i+nbunch,len(iparts)))
       i=i+nbunch
     result=[None]*len(iparts)
-    while self.job_server.wait():
-      job=self.job_server.last_finished_job
+    while self.wait():
+      job=self.last_finished_job
       result[job.range[0]:job.range[1]]=job.result
     return result
   def evaluate2(self,func, iparts,jparts,*args, **kwargs ):
@@ -121,14 +77,14 @@ class AmuseProcessor(object):
     while i<len(iparts):
       j=0
       while j<len(jparts):
-        job = self.job_server.submit_job(func,(ipart_sets[i],jpart_sets[j])+args,{})       
+        job = self.submit_job(func,(ipart_sets[i],jpart_sets[j])+args,{})       
         job.range=(i,min(i+ibunch,len(iparts)))
         j=j+jbunch
       i=i+ibunch
 
     result=[None]*len(iparts)
-    while self.job_server.wait():
-      job=self.job_server.last_finished_job
+    while self.wait():
+      job=self.last_finished_job
       for i in range(job.range[0],job.range[1]):
         if result[i] is None:
           result[i]=job.result[i-job.range[0]]
@@ -137,10 +93,67 @@ class AmuseProcessor(object):
           result[i][1]+=job.result[i-job.range[0]][1]
           result[i][2]+=job.result[i-job.range[0]][2]
     return result
-    
 
-class pp_Processor(object):
-  def __init__(self,preamble="pass",nslices=None,pre_pickle=True):
+
+  
+class MultiProcessor(ParallelProcessor):
+  def __init__(self,preamble=None,nslices=None,nblocks=None,pre_pickle=True,nproc=4):
+    from multiprocessing import Pool
+    self.preamble=preamble
+    self.pre_pickle=pre_pickle
+    self.pool=Pool(processes=nproc)
+    self.nproc=nproc
+    self._jobs=deque()
+    self._last_finished_job=None
+    if nslices is None: nslices=nproc
+    if nblocks is None: nblocks=nproc
+    ParallelProcessor.__init__(self,nslices,nblocks)
+  def exec_(self,arg):
+    from multiprocessing import Pool
+    self.pool.close()
+    self.pool.join()
+    exec arg
+    self.pool=Pool(processes=self.nproc)
+  def submit_job(self,f,args=(),kwargs={}):
+    job=self.pool.apply_async(f,args)
+    self._jobs.append(job)
+    return job
+  def wait(self):
+    if self._jobs:
+      job=self._jobs.popleft()
+      job.result=job.get()
+      self._last_finished_job=job
+      return True
+    else:
+      return False 
+  @property
+  def last_finished_job(self):
+    return self._last_finished_job       
+
+class AmuseProcessor(ParallelProcessor):
+  def __init__(self,hosts=[],preamble=None,nslices=None,nblocks=None, \
+      pre_pickle=True,channel_type="mpi",verbose=False):
+    from amuse.ext.job_server import JobServer
+    self.preamble=preamble
+    self.pre_pickle=pre_pickle
+    self.amuse_servers=hosts
+    self.job_server=JobServer(self.amuse_servers, channel_type=channel_type,
+      preamble=self.preamble,verbose=verbose)
+    if nslices is None: nslices=number_available_codes
+    if nblocks is None: nblocks=nslices
+    ParallelProcessor.__init__(self,nslices,nblocks)
+  def exec_(self,arg):
+    self.job_server.exec_(arg)
+  def submit_job(self,f,args=(),kwargs={}):
+    return self.job_server.submit_job(f,args,kwargs)
+  def wait(self):
+    return self.job_server.wait()
+  @property
+  def last_finished_job(self):
+    return self.job_server.last_finished_job       
+    
+class pp_Processor(ParallelProcessor):
+  def __init__(self,preamble="pass",nslices=None,nblocks=None,pre_pickle=True):
     import pp
     self.ppservers=()#("galaxy",32),("koppoel",4),("biesbosch",4))#,("gaasp",3))
     if len(self.ppservers)>0:
@@ -150,10 +163,13 @@ class pp_Processor(object):
     ncpu=self.job_server.get_ncpus()+reduce(lambda x,y: x+y[1],self.ppservers,0)
     print "Starting pp with", self.job_server.get_ncpus(), "workers and", len(self.ppservers),"clients"
     print "for a total of", ncpu," cpus"
-    if nslices is None: nslices=ncpu
-    self.nslices=nslices
     self.preamble=preamble
     self.pre_pickle=pre_pickle
+    self._jobs=deque()
+    self._last_finished_job=None
+    if nslices is None: nslices=ncpu
+    if nblocks is None: nblocks=nslices
+    ParallelProcessor.__init__(self,nslices,nblocks)    
   def openclients(self):
     self.clients=[]    
     for ppserver,ncpu in self.ppservers:
@@ -170,28 +186,23 @@ class pp_Processor(object):
       client.close()  
   def exec_(self,arg):
     self.preamble=self.preamble+";"+arg
-  def evaluate(self,func, iparts,jparts,*args, **kwargs ):
-    nbunch=kwargs.get('nbunch', ceil(len(iparts),self.nslices))
-    jobs=[]
-    if self.pre_pickle:
-      jparts=cPickle.dumps(jparts,-1)
-      orgfunc=(func,)
-      func=eval("pickled"+func.__name__)
+  def submit_job(self,f,args=(),kwargs={}):
+#orgfunc    
+    job=self.job_server.submit(f,args,(_kick,_potential,_timestep,particle,jparticle),
+                               ("cPickle","mpmath","from mpmath import mp;"+self.preamble))
+    self._jobs.append(job)
+    return job
+  def wait(self):
+    if self._jobs:
+      job=self._jobs.popleft()
+      job.result=job()
+      self._last_finished_job=job
+      return True
     else:
-      orgfunc=()  
-    i=0
-    while i<len(iparts): 
-      job = self.job_server.submit(func,(iparts[i:i+nbunch],jparts)+args,orgfunc+(particle,jparticle),
-                               ("cPickle","mpmath","from mpmath import mp;"+self.preamble)) 
-      job.range=(i,min(i+nbunch,len(iparts)))
-      jobs.append(job)
-      i=i+nbunch
-    result=[None]*len(iparts)
-    for job in jobs:   
-      result[job.range[0]:job.range[1]]=job()
-      i=i+nbunch
-    return result
-  evaluate2=evaluate
+      return False 
+  @property
+  def last_finished_job(self):
+    return self._last_finished_job
     
 class Local_Processor(object):
   def exec_(self,arg):
