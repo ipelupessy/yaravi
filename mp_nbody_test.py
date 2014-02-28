@@ -175,9 +175,9 @@ def time_kick(N=16,processor="local"):
     if processor=="multi":
       mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=["localhost"]*nproc,nslices=nslices,
+      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nslices=nslices,
        preamble="from mpmath import mp",pre_pickle=True,
-       channel_type="sockets")
+       channel_type="mpi")
     elif processor=="pp":
       mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
     else:
@@ -212,6 +212,6 @@ if __name__=="__main__":
 #    cProfile.run('BS_test()','prof')
 #    check_BS_test(N=16)
 #    from mp_integrator_test import BS_test
-#     BS_test(N=64,processor="amuse")
-     check_kick(N=150)
+     BS_test(N=128,processor="amuse")
+#     check_kick(N=512)
 #     time_kick(N=256,processor="amuse")

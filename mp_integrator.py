@@ -15,6 +15,33 @@ def fsmrt(N):
 
 ceil=lambda x,y: (x/y+(x%y>0))
 
+class reducers(object):
+  @staticmethod
+  def _kick(result,jobresult):
+    if result is None:
+      result=jobresult
+    else:
+      result[0]+=jobresult[0]
+      result[1]+=jobresult[1]
+      result[2]+=jobresult[2]
+    return result  
+  @staticmethod
+  def _potential(result,jobresult):
+    if result is None:
+      result=jobresult
+    else:
+      result+=jobresult
+    return result  
+  @staticmethod
+  def _timestep(result,jobresult):
+    if result is None:
+      result=jobresult
+    else:
+      if jobresult<result:
+        result=jobresult
+    return result
+
+
 class ParallelProcessor(object):
   def __init__(self,nslices,nblocks=None):
     self.nslices=nslices
@@ -43,6 +70,8 @@ class ParallelProcessor(object):
       result[job.range[0]:job.range[1]]=job.result
     return result
   def evaluate2(self,func, iparts,jparts,*args, **kwargs ):
+
+    jobreduce=eval("reducers."+func.__name__)
 
     ibunch=ceil(len(iparts),self.ijblocks[1])
     jbunch=ceil(len(jparts),self.ijblocks[0])
@@ -86,15 +115,8 @@ class ParallelProcessor(object):
     while self.wait():
       job=self.last_finished_job
       for i in range(job.range[0],job.range[1]):
-        if result[i] is None:
-          result[i]=job.result[i-job.range[0]]
-        else:
-          result[i][0]+=job.result[i-job.range[0]][0]
-          result[i][1]+=job.result[i-job.range[0]][1]
-          result[i][2]+=job.result[i-job.range[0]][2]
+        result[i]=jobreduce(result[i],job.result[i-job.range[0]])
     return result
-
-
   
 class MultiProcessor(ParallelProcessor):
   def __init__(self,preamble=None,nslices=None,nblocks=None,pre_pickle=True,nproc=4):
@@ -274,9 +296,11 @@ def _potential(iparts,jparts):
 
 def pickled_potential(iparts,jparts):
   return _potential(iparts,cPickle.loads(jparts))
+def pickled2_potential(iparts,jparts):
+  return _potential(cPickle.loads(iparts),cPickle.loads(jparts))
 
 def potential(iparts,jparts):
-  result=pproc.evaluate(_potential, iparts, jparts)
+  result=pproc.evaluate2(_potential, iparts, jparts)
   for ipart,pot in zip(iparts,result):
     ipart.pot=pot
     
@@ -363,9 +387,11 @@ def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
 
 def pickled_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
   return _timestep(iparts,cPickle.loads(jparts), dt_param, rarvratio=rarvratio,max_timestep=max_timestep)
+def pickled2_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
+  return _timestep(cPickle.loads(iparts),cPickle.loads(jparts), dt_param, rarvratio=rarvratio,max_timestep=max_timestep)
 
 def timestep(iparts,jparts,dt_param, rarvratio=1.,max_timestep=max_timestep):
-  result=pproc.evaluate(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
+  result=pproc.evaluate2(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
   for ipart,timestep in zip(iparts,result):
     ipart.timestep=timestep
 
