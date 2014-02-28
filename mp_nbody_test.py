@@ -28,14 +28,14 @@ def BS_test(N=16,processor="local"):
     import time
 
     nproc=4
-    nbunch=N/nproc
+    nslices=nproc
 
     if processor=="multi":
-      mp_integrator.pproc=MultiProcessor(nbunch=nbunch,pre_pickle=True,nproc=nproc)
+      mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nbunch=nbunch,preamble="from mpmath import mp",pre_pickle=True)
+      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
     elif processor=="pp":
-      mp_integrator.pproc=pp_Processor(nbunch=nbunch,pre_pickle=True)
+      mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
     else:
       mp_integrator.pproc=Local_Processor()
 
@@ -105,9 +105,9 @@ def ec_BS_test():
     import time
 
 
-    mp_integrator.pproc=MultiProcessor(nbunch=16,pre_pickle=True)
-#    mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*4,nbunch=16,preamble="from mpmath import mp",pre_pickle=True)
-#    mp_integrator.pproc=pp_Processor(nbunch=4,pre_pickle=True)
+    mp_integrator.pproc=MultiProcessor(nslices=4,pre_pickle=True)
+#    mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*4,nslices=4,preamble="from mpmath import mp",pre_pickle=True)
+#    mp_integrator.pproc=pp_Processor(nslices=4,pre_pickle=True)
 #    mp_integrator.pproc=Local_Processor()
 
     mp.dps=64
@@ -170,14 +170,16 @@ def time_kick(N=16,processor="local"):
     from mp_integrator import kick
 
     nproc=4
-    nbunch=N/nproc
+    nslices=nproc
 
     if processor=="multi":
-      mp_integrator.pproc=MultiProcessor(nbunch=nbunch,pre_pickle=True,nproc=nproc)
+      mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nbunch=nbunch,preamble="from mpmath import mp",pre_pickle=True)
+      mp_integrator.pproc=AmuseProcessor(hosts=["localhost"]*nproc,nslices=nslices,
+       preamble="from mpmath import mp",pre_pickle=True,
+       channel_type="sockets")
     elif processor=="pp":
-      mp_integrator.pproc=pp_Processor(nbunch=nbunch,pre_pickle=True)
+      mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
     else:
       mp_integrator.pproc=Local_Processor()
 
@@ -196,7 +198,8 @@ def time_kick(N=16,processor="local"):
     return hash(parts[-1].vz)
     
 def check_kick(N=16):
-    hashes={ 16: 1762445124, 64: -3541374424,256:-2250164681, 512: 2466512669}
+    hashes={ 16: 1762445124, 50:3277754040,150:-1946492655,64: -3541374424,256:-2250164681,
+       512: 2466512669}
     for p in ["multi","amuse","pp","local"]:
       h=hash(time_kick(N=N,processor=p))
       if hashes[N]==h:
@@ -209,6 +212,6 @@ if __name__=="__main__":
 #    cProfile.run('BS_test()','prof')
 #    check_BS_test(N=16)
 #    from mp_integrator_test import BS_test
-     BS_test(N=64,processor="amuse")
-#     check_kick(N=512)
+#     BS_test(N=64,processor="amuse")
+     check_kick(N=150)
 #     time_kick(N=256,processor="amuse")

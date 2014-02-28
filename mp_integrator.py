@@ -5,11 +5,21 @@ import cPickle
 
 max_timestep=1000.
 
+# naieve function to find biggest factor smaller than root
+def fsmrt(N):
+  n=int(N**0.5)
+  while N%n:
+    n-=1
+  return n
+
+ceil=lambda x,y: (x/y+(x%y>0))
+
 class MultiProcessor(object):
-  def __init__(self,preamble=None,nbunch=24,pre_pickle=True,nproc=4):
+  def __init__(self,preamble=None,nslices=None,pre_pickle=True,nproc=4):
     from multiprocessing import Pool
     self.preamble=preamble
-    self.nbunch=nbunch
+    if nslices is None: nslices=nproc
+    self.nslices=nslices
     self.pre_pickle=pre_pickle
     self.pool=Pool(processes=nproc)
     self.nproc=nproc
@@ -20,8 +30,8 @@ class MultiProcessor(object):
     exec arg
     self.pool=Pool(processes=self.nproc)
   def evaluate(self,func, iparts,jparts,*args, **kwargs ):
-    i=0
-    nbunch=kwargs.get('nbunch',self.nbunch)
+    nbunch=kwargs.get('nbunch', ceil(len(iparts), self.nslices))
+    print nbunch
     if self.pre_pickle:
       jparts=cPickle.dumps(jparts,-1)
       orgfunc=(func,)
@@ -29,6 +39,7 @@ class MultiProcessor(object):
     else:
       orgfunc=()  
     jobs=[]
+    i=0
     while i<len(iparts): 
       job = self.pool.apply_async(func,(iparts[i:i+nbunch],jparts)+args)       
       job.range=(i,min(i+nbunch,len(iparts)))
@@ -41,24 +52,31 @@ class MultiProcessor(object):
   evaluate2=evaluate
 
 class AmuseProcessor(object):
-  def __init__(self,hosts=[],preamble=None,nbunch=24,pre_pickle=True,channel_type="mpi",verbose=False):
+  def __init__(self,hosts=[],preamble=None,nslices=None,nblocks=None,pre_pickle=True,channel_type="mpi",verbose=False):
     from amuse.ext.job_server import JobServer
     self.preamble=preamble
-    self.nbunch=nbunch
+    if nslices is None: nslices=len(hosts)
+    self.nslices=nslices
+    if nblocks is None: 
+      nblocks=len(hosts)
+      n=fsmrt(nblocks)
+      ijblocks=(n,nblocks/n)
+    self.nblocks=nblocks
+    self.ijblocks=ijblocks
     self.pre_pickle=pre_pickle
     self.amuse_servers=hosts
     self.job_server=JobServer(self.amuse_servers, channel_type=channel_type,preamble=self.preamble,verbose=verbose)
   def exec_(self,arg):
     self.job_server.exec_(arg)
   def evaluate(self,func, iparts,jparts,*args, **kwargs ):
-    i=0
-    nbunch=kwargs.get('nbunch',self.nbunch)
+    nbunch=kwargs.get('nbunch', ceil(len(iparts),self.nslices))
     if self.pre_pickle:
       jparts=cPickle.dumps(jparts,-1)
       orgfunc=(func,)
       func=eval("pickled"+func.__name__)
     else:
       orgfunc=()  
+    i=0
     while i<len(iparts): 
       job = self.job_server.submit_job(func,(iparts[i:i+nbunch],jparts)+args,{})       
       job.range=(i,min(i+nbunch,len(iparts)))
@@ -70,8 +88,8 @@ class AmuseProcessor(object):
     return result
   def evaluate2(self,func, iparts,jparts,*args, **kwargs ):
 
-    ibunch=len(iparts)/2
-    jbunch=len(jparts)/2
+    ibunch=ceil(len(iparts),self.ijblocks[1])
+    jbunch=ceil(len(jparts),self.ijblocks[0])
     
     if self.pre_pickle:
       orgfunc=(func,)
@@ -122,17 +140,19 @@ class AmuseProcessor(object):
     
 
 class pp_Processor(object):
-  def __init__(self,preamble="pass",nbunch=24,pre_pickle=True):
+  def __init__(self,preamble="pass",nslices=None,pre_pickle=True):
     import pp
     self.ppservers=()#("galaxy",32),("koppoel",4),("biesbosch",4))#,("gaasp",3))
     if len(self.ppservers)>0:
       from paramiko import SSHClient
     self.openclients()
     self.job_server = pp.Server(ncpus=4,ppservers=tuple(map(lambda x:x[0],self.ppservers)))
+    ncpu=self.job_server.get_ncpus()+reduce(lambda x,y: x+y[1],self.ppservers,0)
     print "Starting pp with", self.job_server.get_ncpus(), "workers and", len(self.ppservers),"clients"
-    print "for a total of", self.job_server.get_ncpus()+reduce(lambda x,y: x+y[1],self.ppservers,0)," cpus"
+    print "for a total of", ncpu," cpus"
+    if nslices is None: nslices=ncpu
+    self.nslices=nslices
     self.preamble=preamble
-    self.nbunch=nbunch
     self.pre_pickle=pre_pickle
   def openclients(self):
     self.clients=[]    
@@ -151,8 +171,7 @@ class pp_Processor(object):
   def exec_(self,arg):
     self.preamble=self.preamble+";"+arg
   def evaluate(self,func, iparts,jparts,*args, **kwargs ):
-    i=0
-    nbunch=kwargs.get('nbunch',self.nbunch)
+    nbunch=kwargs.get('nbunch', ceil(len(iparts),self.nslices))
     jobs=[]
     if self.pre_pickle:
       jparts=cPickle.dumps(jparts,-1)
@@ -160,6 +179,7 @@ class pp_Processor(object):
       func=eval("pickled"+func.__name__)
     else:
       orgfunc=()  
+    i=0
     while i<len(iparts): 
       job = self.job_server.submit(func,(iparts[i:i+nbunch],jparts)+args,orgfunc+(particle,jparticle),
                                ("cPickle","mpmath","from mpmath import mp;"+self.preamble)) 
