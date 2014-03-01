@@ -160,7 +160,7 @@ class AmuseProcessor(ParallelProcessor):
     self.pre_pickle=pre_pickle
     self.amuse_servers=hosts
     self.job_server=JobServer(self.amuse_servers, channel_type=channel_type,
-      preamble=self.preamble,verbose=verbose)
+      preamble=self.preamble,verbose=verbose,no_wait=True)
     if nslices is None: nslices=number_available_codes
     if nblocks is None: nblocks=nslices
     ParallelProcessor.__init__(self,nslices,nblocks)

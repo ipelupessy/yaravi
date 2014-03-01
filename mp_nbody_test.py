@@ -3,6 +3,8 @@ import numpy
 import copy
 import cPickle
 
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot
 
 import itertools
@@ -33,7 +35,7 @@ def BS_test(N=16,processor="local"):
     if processor=="multi":
       mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
+      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
     elif processor=="pp":
       mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
     else:
@@ -106,7 +108,7 @@ def ec_BS_test():
 
 
     mp_integrator.pproc=MultiProcessor(nslices=4,pre_pickle=True)
-#    mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*4,nslices=4,preamble="from mpmath import mp",pre_pickle=True)
+#    mp_integrator.pproc=AmuseProcessor(hosts=[None]*4,nslices=4,preamble="from mpmath import mp",pre_pickle=True)
 #    mp_integrator.pproc=pp_Processor(nslices=4,pre_pickle=True)
 #    mp_integrator.pproc=Local_Processor()
 
@@ -175,9 +177,9 @@ def time_kick(N=16,processor="local"):
     if processor=="multi":
       mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=["emphyrio"]*nproc,nslices=nslices,
+      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,
        preamble="from mpmath import mp",pre_pickle=True,
-       channel_type="mpi")
+       channel_type="mpi",verbose=True)
     elif processor=="pp":
       mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
     else:
@@ -199,7 +201,7 @@ def time_kick(N=16,processor="local"):
     
 def check_kick(N=16):
     hashes={ 16: 1762445124, 50:3277754040,150:-1946492655,64: -3541374424,256:-2250164681,
-       512: 2466512669}
+       512: 2466512669,128:-2819487303}
     for p in ["multi","amuse","pp","local"]:
       h=hash(time_kick(N=N,processor=p))
       if hashes[N]==h:
@@ -212,6 +214,6 @@ if __name__=="__main__":
 #    cProfile.run('BS_test()','prof')
 #    check_BS_test(N=16)
 #    from mp_integrator_test import BS_test
-     BS_test(N=128,processor="amuse")
-#     check_kick(N=512)
+#     BS_test(N=128,processor="amuse")
+     check_kick(N=128)
 #     time_kick(N=256,processor="amuse")
