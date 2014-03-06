@@ -56,10 +56,7 @@ class ParallelProcessor(object):
     nbunch=kwargs.get('nbunch', ceil(len(iparts),self.nslices))
     if self.pre_pickle:
       jparts=cPickle.dumps(jparts,-1)
-      orgfunc=(func,)
       func=eval("pickled"+func.__name__)
-    else:
-      orgfunc=()  
     i=0
     while i<len(iparts): 
       job = self.submit_job(func,(iparts[i:i+nbunch],jparts)+args,{})       
@@ -78,10 +75,7 @@ class ParallelProcessor(object):
     jbunch=ceil(len(jparts),self.ijblocks[0])
     
     if self.pre_pickle:
-      orgfunc=(func,)
       func=eval("pickled2"+func.__name__)
-    else:
-      orgfunc=()  
     
     ipart_sets=dict()
     jpart_sets=dict()
