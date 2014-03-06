@@ -8,7 +8,7 @@ CODE_GENERATOR = $(AMUSE_DIR)/build.py
 all:yaravi_worker
 
 yaravi_worker: interface.py mp_integrator.py
-	$(CODE_GENERATOR) --type=py --mode=mpi -x amuse.community.mp_nbody.interface YaraviInterface YaraviImplementation -o $@
+	$(CODE_GENERATOR) --type=py --mode=mpi -x amuse.community.yaravi.interface YaraviInterface YaraviImplementation -o $@
 	
 clean:
 	$(RM) -f *.bck *.pyc
