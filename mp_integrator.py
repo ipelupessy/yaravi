@@ -395,7 +395,8 @@ def global_timestep(parts):
   return reduce(lambda x,y: min(x,y.timestep),parts,max_timestep)
       
 class bulirschStoer(object):  
-  def __init__(self,target_error, dt_param=mp.mpf('1.'), coeff=[1.], MAXLEVEL=64,jmax=64,rhombus=False,fixed_j=0):
+  def __init__(self,target_error, dt_param=mp.mpf('1.'), coeff=[1.], 
+                 MAXLEVEL=64,jmax=64,rhombus=False,fixed_j=0):
     self.dt_param=dt_param
     self.dtmin=target_error
     self.target_error=target_error
@@ -560,7 +561,7 @@ class bulirschStoer(object):
     self.evolve_adapt(parts,dt)
 
 class floating_point_exact_BS(object):
-  def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,**kwargs):
+  def __init__(self, target_error=mp.mpf("1.e-19"),factor=1000,**kwargs):
     self.dps_safety=4
     self.error_factor=factor
     if -mp.log10(target_error) > mp.dps - self.dps_safety:

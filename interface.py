@@ -12,18 +12,21 @@ from amuse.units import units,nbody_system
 
 mp.dps=20
 
-# todo: setting/ dumping checkpoints, setting initial precision,
+# todo: - setting/ dumping checkpoints, setting initial precision,
 #       rate of increase in precision??
+#       - resetting target_error after recommit?
 
 class YaraviImplementation(object):
     def __init__(self):
         self.particles=dict()
-        self.index_counter=0
+        self._index_counter=0
         self._time=mp.mpf(0.)
         self._begin_time=mp.mpf(0.)
         self.processor="Local_Processor()"
         self.timestep_parameter=mp.mpf('1.')
         self.epsilon_squared=mp.mpf('0.')
+        self.initial_target_error=mp.mpf("1.e-19")
+        self.factor=1000
 
     def set_timestep_parameter(self, eta):
         self.timestep_parameter=mp.mpf(eta)
@@ -55,6 +58,8 @@ class YaraviImplementation(object):
     
     def initialize_code(self):
         self.integrator=mp_integrator.floating_point_exact_BS(
+                                       target_error=self.initial_target_error,
+                                       factor=self.factor,
                                        dt_param=self.timestep_parameter)
         return 0  
 
@@ -64,8 +69,8 @@ class YaraviImplementation(object):
         return 0
       
     def new_particle(self, index, mass,x, y, z, vx, vy, vz, radius):
-        id_ = self.index_counter
-        self.index_counter+=1
+        id_ = self._index_counter
+        self._index_counter+=1
         self.particles[id_]=mp_integrator.particle(mass,x,y,z,vx,vy,vz)
         index.value=id_
         return 0
@@ -183,6 +188,10 @@ class YaraviImplementation(object):
         e.value=float(mp_integrator.kinetic_energy(self.integrator.particles))
         return 0
 
+    def get_total_energy(self,e):
+        e.value=float(mp_integrator.kinetic_energy(self.integrator.particles)+
+                      mp_integrator.potential_energy(self.integrator.particles))
+        return 0
 
 class YaraviInterface(PythonCodeInterface,
                      GravitationalDynamicsInterface, LiteratureReferencesMixIn):
@@ -276,6 +285,10 @@ class Yaravi(GravitationalDynamics):
             convert_nbody,
             **options
         )
+
+    def define_properties(self, object):
+        GravitationalDynamics.define_properties(self,object)
+        object.add_property("get_total_energy")
 
     def define_parameters(self, object):
         
