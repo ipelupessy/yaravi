@@ -13,7 +13,7 @@ from amuse.units import units,nbody_system
 mp.dps=20
 
 # todo: setting/ dumping checkpoints, setting initial precision,
-#       rate of increase in precision??, fix parameters
+#       rate of increase in precision??
 
 class YaraviImplementation(object):
     def __init__(self):
@@ -249,14 +249,16 @@ class YaraviInterface(PythonCodeInterface,
     @legacy_function      
     def set_eps2():
         function = LegacyFunctionSpecification()
-        function.addParameter('eps2', dtype='d', direction=function.IN,unit=nbody_system.length)
+        function.addParameter('eps2', dtype='d', direction=function.IN,
+          unit=nbody_system.length**2)
         function.result_type = 'i'
         return function
 
     @legacy_function      
     def get_eps2():
         function = LegacyFunctionSpecification()
-        function.addParameter('eps2', dtype='d', direction=function.OUT,unit=nbody_system.length)
+        function.addParameter('eps2', dtype='d', direction=function.OUT,
+          unit=nbody_system.length**2)
         function.result_type = 'i'
         return function
 
