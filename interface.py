@@ -8,7 +8,12 @@ from amuse.community.interface.gd import GravitationalDynamicsInterface
 from amuse.community.interface.gd import GravitationalDynamics
 from amuse.rfi.core import PythonCodeInterface
 
+from amuse.units import units,nbody_system
+
 mp.dps=20
+
+# todo: setting/ dumping checkpoints, setting initial precision,
+#       rate of increase in precision??, fix parameters
 
 class YaraviImplementation(object):
     def __init__(self):
@@ -18,13 +23,22 @@ class YaraviImplementation(object):
         self._begin_time=mp.mpf(0.)
         self.processor="Local_Processor()"
         self.timestep_parameter=mp.mpf('1.')
+        self.epsilon_squared=mp.mpf('0.')
 
     def set_timestep_parameter(self, eta):
-        self.timestep_parameter=eta
+        self.timestep_parameter=mp.mpf(eta)
         return 0
     
     def get_timestep_parameter(self,eta):
-        eta.value=self.timestep_parameter
+        eta.value=float(self.timestep_parameter)
+        return 0
+
+    def set_eps2(self, eps2):
+        self.epsilon_squared=mp.mpf(eps2)
+        return 0
+    
+    def get_eps2(self,eps2):
+        eps2.value=float(self.epsilon_squared)
         return 0
       
     def set_processor(self, processor):
@@ -40,13 +54,14 @@ class YaraviImplementation(object):
         return 0
     
     def initialize_code(self):
-        mp_integrator.pproc=eval(self.processor)
-        self.integrator=mp_integrator.floating_point_exact_BS(dt_param=self.timestep_parameter)
+        self.integrator=mp_integrator.floating_point_exact_BS(
+                                       dt_param=self.timestep_parameter)
         return 0  
 
     def commit_parameters(self):
         self._time=self._begin_time
-        return 0    
+        mp_integrator.pproc=eval(self.processor)
+        return 0
       
     def new_particle(self, index, mass,x, y, z, vx, vy, vz, radius):
         id_ = self.index_counter
@@ -184,7 +199,7 @@ class YaraviInterface(PythonCodeInterface,
     checkpoint in the code: the solution found is guaranteed to floating 
     point precision from the last check point.
 
-    .. [#] based on Boekholt et al. 
+    .. [#] Boekholt et al. 
 
     """
 
@@ -217,6 +232,33 @@ class YaraviInterface(PythonCodeInterface,
         function.result_type = 'int32'
         return function
 
+    @legacy_function      
+    def get_timestep_parameter():
+        function = LegacyFunctionSpecification()
+        function.addParameter('timestep_parameter', dtype='d', direction=function.OUT)
+        function.result_type = 'i'
+        return function
+
+    @legacy_function      
+    def set_timestep_parameter():
+        function = LegacyFunctionSpecification()
+        function.addParameter('timestep_parameter', dtype='d', direction=function.IN)
+        function.result_type = 'i'
+        return function
+
+    @legacy_function      
+    def set_eps2():
+        function = LegacyFunctionSpecification()
+        function.addParameter('eps2', dtype='d', direction=function.IN,unit=nbody_system.length)
+        function.result_type = 'i'
+        return function
+
+    @legacy_function      
+    def get_eps2():
+        function = LegacyFunctionSpecification()
+        function.addParameter('eps2', dtype='d', direction=function.OUT,unit=nbody_system.length)
+        function.result_type = 'i'
+        return function
 
 class Yaravi(GravitationalDynamics):
 
@@ -231,4 +273,38 @@ class Yaravi(GravitationalDynamics):
             nbody_interface,
             convert_nbody,
             **options
+        )
+
+    def define_parameters(self, object):
+        
+        object.add_method_parameter(
+            "get_eps2",
+            "set_eps2", 
+            "epsilon_squared", 
+            "smoothing parameter for gravity calculations (not working)", 
+            default_value = 0.0 | nbody_system.length * nbody_system.length
+        )
+        
+        object.add_method_parameter(
+            "get_timestep_parameter",
+            "set_timestep_parameter", 
+            "timestep_parameter", 
+            "timestep parameter for gravity calculations", 
+            default_value = 1.
+        )
+
+        object.add_method_parameter(
+            "get_begin_time",
+            "set_begin_time",
+            "begin_time",
+            "model time to start the simulation at",
+            default_value = 0.0 | nbody_system.time
+        )
+
+        object.add_method_parameter(
+            "get_processor", 
+            "set_processor",
+            "processor", 
+            "startup command determining the processor of the integrator (Local_Processor)", 
+            default_value = "Local_Processor()"
         )
