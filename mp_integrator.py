@@ -3,6 +3,7 @@ import numpy
 import copy
 import cPickle
 from collections import deque
+import itertools
 
 max_timestep=1000.
 
@@ -174,10 +175,12 @@ class AmuseProcessor(ParallelProcessor):
   def last_finished_job(self):
     return self.job_server.last_finished_job       
     
+# ppservers should be tuple with hostnames and #cpu:
+# ppserver=(("galaxy",32),("koppoel",4),("biesbosch",4),("gaasp",3))
 class pp_Processor(ParallelProcessor):
-  def __init__(self,preamble="pass",nslices=None,nblocks=None,pre_pickle=True):
+  def __init__(self,preamble="pass",nslices=None,nblocks=None,pre_pickle=True,ppservers=()):
     import pp
-    self.ppservers=()#("galaxy",32),("koppoel",4),("biesbosch",4))#,("gaasp",3))
+    self.ppservers=()
     if len(self.ppservers)>0:
       from paramiko import SSHClient
     self.openclients()
@@ -301,7 +304,7 @@ def pickled2_potential(iparts,jparts):
 
 def potential(iparts,jparts):
   result=pproc.evaluate2(_potential, iparts, jparts)
-  for ipart,pot in zip(iparts,result):
+  for ipart,pot in itertools.izip(iparts,result):
     ipart.pot=pot
     
 def drift(parts,dt):
@@ -343,7 +346,7 @@ def kick(iparts,jparts,dt):
   iparts_=[jparticle(x=x.x,y=x.y,z=x.z) for x in iparts]
   jparts_=[jparticle(m=x.m,x=x.x,y=x.y,z=x.z) for x in jparts]
   result=pproc.evaluate2(_kick, iparts_, jparts_,dt)
-  for ipart,dv in zip(iparts, result):
+  for ipart,dv in itertools.izip(iparts, result):
     ipart.vx+=dv[0]
     ipart.vy+=dv[1]
     ipart.vz+=dv[2]
@@ -392,7 +395,7 @@ def pickled2_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
 
 def timestep(iparts,jparts,dt_param, rarvratio=1.,max_timestep=max_timestep):
   result=pproc.evaluate2(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
-  for ipart,timestep in zip(iparts,result):
+  for ipart,timestep in itertools.izip(iparts,result):
     ipart.timestep=timestep
 
 def global_timestep(parts):
@@ -431,18 +434,11 @@ class bulirschStoer(object):
         k.append( (c[i]+c[i+1])/2)
       k.append( c[-1]/2)
     
-#      print len(d),sum(d)
-#      print len(k),sum(k)
       self.kick_coeff.append(k)
       self.drift_coeff.append(d)
   
   def nsequence(self,j):
     return 2*j
-#[1,2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73,
-# 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163
-#, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251
-#, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311, 313, 317, 331, 337, 347, 349
-#, 353, 359, 367, 373, 379, 383, 389, 397][j]
         
   def kdk(self,parts,dt,kick_coeff,drift_coeff):
     kick(parts,parts,kick_coeff[0]*dt)
