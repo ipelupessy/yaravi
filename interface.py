@@ -128,6 +128,7 @@ class YaraviImplementation(object):
           return -1
 
     def recommit_particles(self):
+        self.integrator.time=self._time
         self.integrator.particles=[]
         for key in sorted(self.particles.keys()):
             self.integrator.particles.append(self.particles[key])
@@ -135,7 +136,6 @@ class YaraviImplementation(object):
         return 0
 
     def commit_particles(self):
-        self.integrator.time=self._time
         self.recommit_particles()
         return 0
         
