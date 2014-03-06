@@ -15,6 +15,7 @@ class YaraviImplementation(object):
         self.particles=dict()
         self.index_counter=0
         self._time=mp.mpf(0.)
+        self._begin_time=mp.mpf(0.)
         self.processor="Local_Processor()"
         self.timestep_parameter=mp.mpf('1.')
 
@@ -41,10 +42,10 @@ class YaraviImplementation(object):
     def initialize_code(self):
         mp_integrator.pproc=eval(self.processor)
         self.integrator=mp_integrator.floating_point_exact_BS(dt_param=self.timestep_parameter)
-        self.integrator.time=self._time
         return 0  
 
     def commit_parameters(self):
+        self._time=self._begin_time
         return 0    
       
     def new_particle(self, index, mass,x, y, z, vx, vy, vz, radius):
@@ -126,15 +127,16 @@ class YaraviImplementation(object):
         except:
           return -1
 
-    def commit_particles(self):
+    def recommit_particles(self):
         self.integrator.particles=[]
         for key in sorted(self.particles.keys()):
             self.integrator.particles.append(self.particles[key])
         self.integrator.commit_particles()
         return 0
 
-    def recommit_particles(self):
-        self.commit_particles()
+    def commit_particles(self):
+        self.integrator.time=self._time
+        self.recommit_particles()
         return 0
         
     def evolve_model(self,tend):
@@ -148,9 +150,13 @@ class YaraviImplementation(object):
           return -1
 
     def set_begin_time(self,t):
-        self.integrator.time=mp.mpf(t)
+        self._begin_time=mp.mpf(t)
         return 0
-        
+
+    def get_begin_time(self,t):
+        t.value=float(self._begin_time)
+        return 0
+
     def synchronize_model(self):
         return 0    
 
