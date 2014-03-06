@@ -26,7 +26,7 @@ def plummer(N):
                                       p.vx.number,p.vy.number,p.vz.number))
     return particles                                   
     
-def BS_test(N=16,processor="local"):
+def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     import time
 
     nproc=4
@@ -46,11 +46,11 @@ def BS_test(N=16,processor="local"):
     parts=plummer(N) 
         
     t=0
-    tend=mp.mpf(1.)/8
+    tend=mp.mpf(tend)
     dt=mp.mpf(1)/mp.mpf(8)
     dt_param=mp.mpf('1.')
 
-    integrator=bulirschStoer(mp.mpf('1.e-16'),dt_param)
+    integrator=bulirschStoer(mp.mpf(prec),dt_param)
 
     e0=total_energy(parts)
 
@@ -91,7 +91,10 @@ def BS_test(N=16,processor="local"):
 #    print x[-1],y[-1]
 
     print parts[0].x
-    return total_energy(parts)
+    if res=="energy":
+      return total_energy(parts)
+    else:
+      return str(parts[0].x)[0:32]
 
 def check_BS_test(N=16):
   hashes={ 16:-1805142856, 32: -1690459273}
@@ -102,6 +105,14 @@ def check_BS_test(N=16):
     else:
       print p+" nook:", h
 
+def check_BS_test_long(N=16):
+  hashes={ 8: 7787870482253759781}
+  for p in ["amuse","local"]:
+    h=hash(BS_test(N=N,processor=p,tend=0.5,prec='1.e-32',res="x"))
+    if hashes[N]==h:
+      print p+" ok"
+    else:
+      print p+" nook:", h
 
 def ec_BS_test():
     import time
@@ -212,8 +223,8 @@ def check_kick(N=16):
 if __name__=="__main__":
 #    import cProfile
 #    cProfile.run('BS_test()','prof')
-#    check_BS_test(N=16)
 #    from mp_integrator_test import BS_test
-#     BS_test(N=128,processor="amuse")
-     check_kick(N=128)
+#     BS_test(N=8,processor="local",tend=2.)
+#     check_kick(N=128)
 #     time_kick(N=256,processor="amuse")
+    check_BS_test_long(N=8)

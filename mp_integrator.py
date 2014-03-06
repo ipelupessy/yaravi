@@ -3,7 +3,7 @@ import numpy
 import copy
 import cPickle
 from collections import deque
-import itertools
+from itertools import izip
 
 max_timestep=1000.
 
@@ -212,7 +212,6 @@ class pp_Processor(ParallelProcessor):
   def exec_(self,arg):
     self.preamble=self.preamble+";"+arg
   def submit_job(self,f,args=(),kwargs={}):
-#orgfunc    
     job=self.job_server.submit(f,args,(_kick,_potential,_timestep,particle,jparticle),
                                ("cPickle","mpmath","from mpmath import mp;"+self.preamble))
     self._jobs.append(job)
@@ -304,7 +303,7 @@ def pickled2_potential(iparts,jparts):
 
 def potential(iparts,jparts):
   result=pproc.evaluate2(_potential, iparts, jparts)
-  for ipart,pot in itertools.izip(iparts,result):
+  for ipart,pot in izip(iparts,result):
     ipart.pot=pot
     
 def drift(parts,dt):
@@ -346,7 +345,7 @@ def kick(iparts,jparts,dt):
   iparts_=[jparticle(x=x.x,y=x.y,z=x.z) for x in iparts]
   jparts_=[jparticle(m=x.m,x=x.x,y=x.y,z=x.z) for x in jparts]
   result=pproc.evaluate2(_kick, iparts_, jparts_,dt)
-  for ipart,dv in itertools.izip(iparts, result):
+  for ipart,dv in izip(iparts, result):
     ipart.vx+=dv[0]
     ipart.vy+=dv[1]
     ipart.vz+=dv[2]
@@ -395,7 +394,7 @@ def pickled2_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
 
 def timestep(iparts,jparts,dt_param, rarvratio=1.,max_timestep=max_timestep):
   result=pproc.evaluate2(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
-  for ipart,timestep in itertools.izip(iparts,result):
+  for ipart,timestep in izip(iparts,result):
     ipart.timestep=timestep
 
 def global_timestep(parts):
@@ -484,13 +483,13 @@ class bulirschStoer(object):
 
   def error_function(self,parts1,parts2):
       maxdiv=0.
-      for i in range(len(parts1)):
-        maxdiv=max( [maxdiv, abs(parts1[i].x-parts2[i].x),
-                             abs(parts1[i].y-parts2[i].y),
-        abs(parts1[i].z-parts2[i].z),
-        abs(parts1[i].vx-parts2[i].vx),
-        abs(parts1[i].vy-parts2[i].vy),
-        abs(parts1[i].vz-parts2[i].vz)])
+      for p1,p2 in izip(parts1,parts2):
+        maxdiv=max( [maxdiv,  abs(p1.x-p2.x), 
+                              abs(p1.y-p2.y),
+                              abs(p1.z-p2.z),
+                              abs(p1.vx-p2.vx),
+                              abs(p1.vy-p2.vy),
+                              abs(p1.vz-p2.vz) ])
       return maxdiv
 
   def evolve_BS(self,parts,dt):
@@ -619,11 +618,11 @@ class floating_point_exact_BS(object):
 
 
   def error_function(self,parts1,parts2):
-      for i in range(len(parts1)):
-        if ( float(parts1[i].x)!=float(parts2[i].x) or 
-             float(parts1[i].y)!=float(parts2[i].y) or
-             float(parts1[i].z)!=float(parts2[i].z) or
-             float(parts1[i].vx)!=float(parts2[i].vx) or
-             float(parts1[i].vy)!=float(parts2[i].vy) or
-             float(parts1[i].vz)!=float(parts2[i].vz) ): return True
+      for p1,p2 in izip(parts1,parts2):
+        if ( float(p1.x)!=float(p2.x) or 
+             float(p1.y)!=float(p2.y) or
+             float(p1.z)!=float(p2.z) or
+             float(p1.vx)!=float(p2.vx) or
+             float(p1.vy)!=float(p2.vy) or
+             float(p1.vz)!=float(p2.vz) ): return True
       return False
