@@ -10,7 +10,7 @@ from amuse.rfi.core import PythonCodeInterface
 
 mp.dps=20
 
-class mpNbodyImplementation(object):
+class YaraviImplementation(object):
     def __init__(self):
         self.particles=dict()
         self.index_counter=0
@@ -163,15 +163,20 @@ class mpNbodyImplementation(object):
         return 0
 
 
-class mpNbodyInterface(PythonCodeInterface,
+class YaraviInterface(PythonCodeInterface,
                      GravitationalDynamicsInterface, LiteratureReferencesMixIn):
     """
-    mpNbody is a code to solve the astrophysical N-body problem guaranteed to
-    floating precision. It uses an python implementation of the Brutus solver
-    (Bulirsch-Stoer with adaptive timestepping). It has crude support for 
-    parallelization. Note that (re)commit_particles calls generate a checkpoint
-    in the code: the solution found is guaranteed to floating point precision from 
-    the last check point.
+    Yaravi
+    
+    Yet AnotheR Arithmetic-precision Varying Integrator
+    
+    Yaravi is a code to solve the astrophysical N-body problem 
+    guaranteed to python float( 64-bit floating point) precision. It 
+    uses an python implementation of the Brutus solver (Bulirsch-Stoer 
+    with adaptive timestepping). It has crude support for 
+    parallelization. Note that (re)commit_particles calls generate a 
+    checkpoint in the code: the solution found is guaranteed to floating 
+    point precision from the last check point.
 
     .. [#] based on Boekholt et al. 
 
@@ -182,8 +187,8 @@ class mpNbodyInterface(PythonCodeInterface,
         
         PythonCodeInterface.__init__(
             self,
-            mpNbodyImplementation,
-            'mpnbody_worker',
+            YaraviImplementation,
+            'yaravi_worker',
             **options)
         LiteratureReferencesMixIn.__init__(self)
         
@@ -207,13 +212,13 @@ class mpNbodyInterface(PythonCodeInterface,
         return function
 
 
-class mpNbody(GravitationalDynamics):
+class Yaravi(GravitationalDynamics):
 
     def __init__(self, convert_nbody=None, **options):
         if not options.has_key("processor"):
           options["processor"]=None
         
-        nbody_interface = mpNbodyInterface(**options)
+        nbody_interface = YaraviInterface(**options)
 
         GravitationalDynamics.__init__(
             self,
