@@ -26,7 +26,7 @@ class YaraviImplementation(object):
         self.timestep_parameter=mp.mpf('1.')
         self.epsilon_squared=mp.mpf('0.')
         self.initial_target_error=mp.mpf("1.e-16")
-        self.factor=1e10
+        self.factor=mp.mpf("1.e10")
         self.initial_dps=20
 
     def set_timestep_parameter(self, eta):
@@ -179,6 +179,30 @@ class YaraviImplementation(object):
         t.value=float(self._begin_time)
         return 0
 
+    def set_initial_target_error(self,t):
+        self.initial_target_error=mp.mpf(t)
+        return 0
+
+    def get_initial_target_error(self,t):
+        t.value=float(self.initial_target_error)
+        return 0
+
+    def set_factor(self,t):
+        self.factor=mp.mpf(t)
+        return 0
+
+    def get_factor(self,t):
+        t.value=float(self.factor)
+        return 0
+
+    def set_initial_dps(self,t):
+        self.initial_dps=t
+        return 0
+
+    def get_initial_dps(self,t):
+        t.value=self.initial_dps
+        return 0
+
     def synchronize_model(self):
         return 0    
 
@@ -273,6 +297,45 @@ class YaraviInterface(PythonCodeInterface,
         function.result_type = 'i'
         return function
 
+    @legacy_function      
+    def set_initial_target_error():
+        function = LegacyFunctionSpecification()
+        function.addParameter('initial_target_error', dtype='d', direction=function.IN)
+        function.result_type = 'i'
+        return function
+    @legacy_function      
+    def get_initial_target_error():
+        function = LegacyFunctionSpecification()
+        function.addParameter('initial_target_error', dtype='d', direction=function.OUT)
+        function.result_type = 'i'
+        return function
+
+    @legacy_function      
+    def set_factor():
+        function = LegacyFunctionSpecification()
+        function.addParameter('factor', dtype='d', direction=function.IN)
+        function.result_type = 'i'
+        return function
+    @legacy_function      
+    def get_factor():
+        function = LegacyFunctionSpecification()
+        function.addParameter('factor', dtype='d', direction=function.OUT)
+        function.result_type = 'i'
+        return function
+
+    @legacy_function      
+    def set_initial_dps():
+        function = LegacyFunctionSpecification()
+        function.addParameter('initial_dps', dtype='i', direction=function.IN)
+        function.result_type = 'i'
+        return function
+    @legacy_function      
+    def get_initial_dps():
+        function = LegacyFunctionSpecification()
+        function.addParameter('initial_dps', dtype='i', direction=function.OUT)
+        function.result_type = 'i'
+        return function
+
 class Yaravi(GravitationalDynamics):
 
     def __init__(self, convert_nbody=None, **options):
@@ -325,3 +388,28 @@ class Yaravi(GravitationalDynamics):
             "startup command determining the processor of the integrator (Local_Processor)", 
             default_value = "Local_Processor()"
         )
+
+        object.add_method_parameter(
+            "get_initial_target_error",
+            "set_initial_target_error", 
+            "initial_target_error", 
+            "initial_target_error for BS integrator", 
+            default_value = 1.e-16
+        )
+        
+        object.add_method_parameter(
+            "get_factor",
+            "set_factor", 
+            "factor", 
+            "factor for decrease in target error", 
+            default_value = 1.e-10
+        )        
+        
+        object.add_method_parameter(
+            "get_initial_dps",
+            "set_initial_dps", 
+            "initial_dps", 
+            "initial dps", 
+            default_value = 20
+        )        
+        
