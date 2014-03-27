@@ -25,8 +25,9 @@ class YaraviImplementation(object):
         self.processor="Local_Processor()"
         self.timestep_parameter=mp.mpf('1.')
         self.epsilon_squared=mp.mpf('0.')
-        self.initial_target_error=mp.mpf("1.e-19")
-        self.factor=1000
+        self.initial_target_error=mp.mpf("1.e-16")
+        self.factor=1e10
+        self.initial_dps=20
 
     def set_timestep_parameter(self, eta):
         self.timestep_parameter=mp.mpf(eta)
@@ -60,7 +61,8 @@ class YaraviImplementation(object):
         self.integrator=mp_integrator.floating_point_exact_BS(
                                        target_error=self.initial_target_error,
                                        factor=self.factor,
-                                       dt_param=self.timestep_parameter)
+                                       dt_param=self.timestep_parameter,
+                                       dps=self.initial_dps)
         return 0  
 
     def commit_parameters(self):

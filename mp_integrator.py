@@ -561,21 +561,28 @@ class bulirschStoer(object):
     self.evolve_adapt(parts,dt)
 
 class floating_point_exact_BS(object):
-  def __init__(self, target_error=mp.mpf("1.e-19"),factor=1000,**kwargs):
-    self.dps_safety=4
+  def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,dps=20,**kwargs):
+    self.dps_safety=6
     self.error_factor=factor
-    if -mp.log10(target_error) > mp.dps - self.dps_safety:
-      mp.dps*=2
-    self.target_error1=target_error
-    self.target_error2=target_error*factor
-    self.integrator1=bulirschStoer(self.target_error1,**kwargs)
-    self.integrator2=bulirschStoer(self.target_error2,**kwargs)
+    self.initial_target_error=target_error
+    self.initial_dps=dps
     self.time=mp.mpf(0.)
     self.particles=[]
     self.checkpoint=[]
     self.checkpoint_time=self.time
     self.kwargs=kwargs
   def commit_particles(self):
+
+    self.target_error1=self.initial_target_error/self.error_factor
+    self.target_error2=self.initial_target_error
+    mp.dps=self.initial_dps
+    while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
+      mp.dps*=2
+      print "(re)setting, target error:",float(-mp.log10(self.target_error1)),
+      print "digits:",mp.dps  
+    self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
+    self.integrator2=bulirschStoer(self.target_error2,**self.kwargs)
+
     self.checkpoint=copy_particles(self.particles)
     self.particles1=self.particles
     self.particles2=copy_particles(self.particles1)
@@ -599,9 +606,10 @@ class floating_point_exact_BS(object):
       self.target_error2=self.target_error1
  
       self.target_error1=self.target_error1/self.error_factor
-      if -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
+      while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
         mp.dps*=2
-      print "extending precision:",float(-mp.log10(self.target_error1)),mp.dps  
+        print "extending, target error:",float(-mp.log10(self.target_error1)),
+        print "digits:",mp.dps  
       self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
       self.particles1=copy_particles(self.checkpoint)
       self.integrator1.evolve(self.particles1,tend-self.checkpoint_time)
