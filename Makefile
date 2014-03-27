@@ -5,10 +5,22 @@ AMUSE_DIR?=../../../..
 
 CODE_GENERATOR = $(AMUSE_DIR)/build.py
 
-all:yaravi_worker
+MPMATH_AVAILABLE := $(shell $(PYTHON) -c "import mpmath"  1>&2 2> /dev/null && echo "yes" || echo "no")
+
+all: test yaravi_worker
 
 yaravi_worker: interface.py mp_integrator.py
 	$(CODE_GENERATOR) --type=py --mode=mpi -x amuse.community.yaravi.interface YaraviInterface YaraviImplementation -o $@
+	
+test:
+	@echo
+	@echo "Testing import of mpmath:"
+ifeq ($(MPMATH_AVAILABLE),no)
+	$(error "Python import mpmath not available - install this first")
+endif
+	@echo "Tests successful!"
+	@echo
+	
 	
 clean:
 	$(RM) -f *.bck *.pyc
