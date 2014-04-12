@@ -12,9 +12,9 @@ from amuse.units import units,nbody_system
 
 mp.dps=20
 
-# todo: - setting/ dumping checkpoints, setting initial precision,
-#       rate of increase in precision??
-#       - resetting target_error after recommit?
+# todo: 
+# - setting/ dumping checkpoints
+# - synchronize parameters with actual used parameters
 
 class YaraviImplementation(object):
     def __init__(self):
@@ -58,14 +58,14 @@ class YaraviImplementation(object):
         return 0
     
     def initialize_code(self):
+        return 0  
+
+    def commit_parameters(self):
         self.integrator=mp_integrator.floating_point_exact_BS(
                                        target_error=self.initial_target_error,
                                        factor=self.factor,
                                        dt_param=self.timestep_parameter,
                                        dps=self.initial_dps)
-        return 0  
-
-    def commit_parameters(self):
         self._time=self._begin_time
         mp_integrator.pproc=eval(self.processor)
         return 0
@@ -234,7 +234,7 @@ class YaraviInterface(PythonCodeInterface,
     checkpoint in the code: the solution found is guaranteed to floating 
     point precision from the last check point.
 
-    .. [#] Boekholt et al. 
+    .. [#] based on Boekholt et al., python implementation F.I. Pelupessy
 
     """
 
@@ -402,7 +402,7 @@ class Yaravi(GravitationalDynamics):
             "set_factor", 
             "factor", 
             "factor for decrease in target error", 
-            default_value = 1.e-10
+            default_value = 1.e10
         )        
         
         object.add_method_parameter(

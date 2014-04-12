@@ -4,6 +4,7 @@ import copy
 import cPickle
 from itertools import izip
 import processors
+import time
 
 max_timestep=1000.
 
@@ -484,6 +485,7 @@ class bulirschStoer(object):
 class floating_point_exact_BS(object):
   def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,dps=20,**kwargs):
     self.dps_safety=6
+    print "fac:",factor
     self.error_factor=factor
     self.initial_target_error=target_error
     self.initial_dps=dps
@@ -508,6 +510,10 @@ class floating_point_exact_BS(object):
     self.particles1=self.particles
     self.particles2=copy_particles(self.particles1)
     self.checkpoint_time=self.time
+    
+    self.wallclock1=0
+    self.wallclock2=0
+    
   def recommit_particles(self):
     self.commit_particles()  
   def evolve(self,tend):
@@ -515,8 +521,16 @@ class floating_point_exact_BS(object):
     
     if dt<=0:
       return
+
+    t1=time.time()
     self.integrator1.evolve(self.particles1,dt)
+    t2=time.time()
+    self.wallclock1+=t2-t1
     self.integrator2.evolve(self.particles2,dt)
+    t3=time.time()
+    self.wallclock2+=t3-t2
+
+    print "timing:", t2-t1,t3-t2,", ratio:",(t2-t1)/(t3-t2)
 
     error=self.error_function(self.particles1,self.particles2)
 
@@ -525,6 +539,7 @@ class floating_point_exact_BS(object):
       self.integrator2=self.integrator1
       self.particles2=self.particles1
       self.target_error2=self.target_error1
+      self.wallclock2=self.wallclock1
  
       self.target_error1=self.target_error1/self.error_factor
       while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
@@ -533,7 +548,12 @@ class floating_point_exact_BS(object):
         print "digits:",mp.dps  
       self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
       self.particles1=copy_particles(self.checkpoint)
+      t1=time.time()
       self.integrator1.evolve(self.particles1,tend-self.checkpoint_time)
+      t2=time.time()
+      self.wallclock1+=t2-t1
+      print "timing (totals):", self.wallclock1,self.wallclock2,self.wallclock1/self.wallclock2
+      
       
       error=self.error_function(self.particles1,self.particles2)
 
