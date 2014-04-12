@@ -2,8 +2,8 @@ from mpmath import mp
 import numpy
 import copy
 import cPickle
-from collections import deque
 from itertools import izip
+import processors
 
 max_timestep=1000.
 
@@ -42,9 +42,8 @@ class reducers(object):
         result=jobresult
     return result
 
-
-class ParallelProcessor(object):
-  def __init__(self,nslices,nblocks=None):
+class NbodyProcessor(object):
+  def __init__(self,nslices=1,nblocks=None):
     self.nslices=nslices
     if nblocks is None: 
       nblocks=nslices
@@ -112,116 +111,38 @@ class ParallelProcessor(object):
       for i in range(job.range[0],job.range[1]):
         result[i]=jobreduce(result[i],job.result[i-job.range[0]])
     return result
-  
-class MultiProcessor(ParallelProcessor):
-  def __init__(self,preamble=None,nslices=None,nblocks=None,pre_pickle=True,nproc=4):
-    from multiprocessing import Pool
-    self.preamble=preamble
-    self.pre_pickle=pre_pickle
-    self.pool=Pool(processes=nproc)
-    self.nproc=nproc
-    self._jobs=deque()
-    self._last_finished_job=None
-    if nslices is None: nslices=nproc
-    if nblocks is None: nblocks=nproc
-    ParallelProcessor.__init__(self,nslices,nblocks)
-  def exec_(self,arg):
-    from multiprocessing import Pool
-    self.pool.close()
-    self.pool.join()
-    exec arg
-    self.pool=Pool(processes=self.nproc)
-  def submit_job(self,f,args=(),kwargs={}):
-    job=self.pool.apply_async(f,args)
-    self._jobs.append(job)
-    return job
-  def wait(self):
-    if self._jobs:
-      job=self._jobs.popleft()
-      job.result=job.get()
-      self._last_finished_job=job
-      return True
-    else:
-      return False 
-  @property
-  def last_finished_job(self):
-    return self._last_finished_job       
 
-class AmuseProcessor(ParallelProcessor):
-  def __init__(self,hosts=[],preamble=None,nslices=None,nblocks=None, \
-      pre_pickle=True,channel_type="mpi",verbose=False):
-    from amuse.ext.job_server import JobServer
-    self.preamble=preamble
-    self.pre_pickle=pre_pickle
-    self.amuse_servers=hosts
-    self.job_server=JobServer(self.amuse_servers, channel_type=channel_type,
-      preamble=self.preamble,verbose=verbose,no_wait=True)
-    if nslices is None: nslices=self.job_server.number_available_codes
+class Processor(processors.Processor,NbodyProcessor):
+  def __init__(self,nslices=None,nblocks=None,preamble="pass"):
+    processors.Processor.__init__(self,preamble=preamble)
+    if nslices is None: nslices=self.nproc
     if nblocks is None: nblocks=nslices
-    ParallelProcessor.__init__(self,nslices,nblocks)
-  def exec_(self,arg):
-    self.job_server.exec_(arg)
-  def submit_job(self,f,args=(),kwargs={}):
-    return self.job_server.submit_job(f,args,kwargs)
-  def wait(self):
-    return self.job_server.wait()
-  @property
-  def last_finished_job(self):
-    return self.job_server.last_finished_job       
-    
-# ppservers should be tuple with hostnames and #cpu:
-# ppserver=(("galaxy",32),("koppoel",4),("biesbosch",4),("gaasp",3))
-class pp_Processor(ParallelProcessor):
-  def __init__(self,preamble="pass",nslices=None,nblocks=None,pre_pickle=True,ppservers=()):
-    import pp
-    self.ppservers=()
-    if len(self.ppservers)>0:
-      from paramiko import SSHClient
-    self.openclients()
-    self.job_server = pp.Server(ncpus=4,ppservers=tuple(map(lambda x:x[0],self.ppservers)))
-    ncpu=self.job_server.get_ncpus()+reduce(lambda x,y: x+y[1],self.ppservers,0)
-    print "Starting pp with", self.job_server.get_ncpus(), "workers and", len(self.ppservers),"clients"
-    print "for a total of", ncpu," cpus"
-    self.preamble=preamble
-    self.pre_pickle=pre_pickle
-    self._jobs=deque()
-    self._last_finished_job=None
-    if nslices is None: nslices=ncpu
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
+
+class MultiProcessor(processors.MultiProcessor,NbodyProcessor):
+  def __init__(self,preamble="pass",pre_pickle=True,nproc=4,nslices=None,nblocks=None):
+    processors.MultiProcessor.__init__(self,preamble=preamble,pre_pickle=pre_pickle,nproc=nproc)
+    if nslices is None: nslices=self.nproc
     if nblocks is None: nblocks=nslices
-    ParallelProcessor.__init__(self,nslices,nblocks)    
-  def openclients(self):
-    self.clients=[]    
-    for ppserver,ncpu in self.ppservers:
-      client=SSHClient()
-      client.load_system_host_keys()
-      client.connect(ppserver)
-      stdin,stdout,stderr=client.exec_command('killall -KILL ppserver.py')
-      stdin,stdout,stderr=client.exec_command('source /disks/paddegat2/pelupes/amuse/setdev; ppserver.py -w %d'%ncpu)
-      self.clients.append(client)
-  def __del__(self):
-    self.closeclients()
-  def closeclients(self):  
-    for client in self.clients:
-      client.close()  
-  def exec_(self,arg):
-    self.preamble=self.preamble+";"+arg
-  def submit_job(self,f,args=(),kwargs={}):
-    job=self.job_server.submit(f,args,(_kick,_potential,_timestep,particle,jparticle),
-                               ("cPickle","mpmath","from mpmath import mp;"+self.preamble))
-    self._jobs.append(job)
-    return job
-  def wait(self):
-    if self._jobs:
-      job=self._jobs.popleft()
-      job.result=job()
-      self._last_finished_job=job
-      return True
-    else:
-      return False 
-  @property
-  def last_finished_job(self):
-    return self._last_finished_job
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
+
+class AmuseProcessor(processors.AmuseProcessor,NbodyProcessor):
+  def __init__(self,hosts=[],preamble="pass", pre_pickle=True,channel_type="mpi",verbose=False,
+                      nslices=None,nblocks=None):
+    processors.AmuseProcessor.__init__(self,hosts=hosts,preamble=preamble, pre_pickle=pre_pickle,
+                                         channel_type=channel_type,verbose=verbose)
+    if nslices is None: nslices=self.nproc
+    if nblocks is None: nblocks=nslices
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
     
+class pp_Processor(processors.pp_Processor,NbodyProcessor):
+  def __init__(self,preamble="pass",pre_pickle=True,ppservers=(),nslices=None,nblocks=None):    
+    processors.pp_Processor.__init__(self,preamble=preamble,pre_pickle=pre_pickle,
+                                       ppservers=ppservers)
+    if nslices is None: nslices=self.nproc
+    if nblocks is None: nblocks=nslices
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
+
 class Local_Processor(object):
   def exec_(self,arg):
     pass

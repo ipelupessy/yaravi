@@ -11,7 +11,7 @@ import itertools
 
 import mp_integrator
 from mp_integrator import bulirschStoer,particle,total_energy#,error_controlled_BS
-from mp_integrator import Local_Processor,pp_Processor,AmuseProcessor,MultiProcessor
+from mp_integrator import Local_Processor,pp_Processor,AmuseProcessor,MultiProcessor,Processor
 
 def plummer(N):
     from amuse.ic.plummer import new_plummer_model
@@ -33,11 +33,14 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     nslices=nproc
 
     if processor=="multi":
-      mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
+      mp_integrator.pproc=MultiProcessor(preamble="from mpmath import mp",nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
       mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
     elif processor=="pp":
-      mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
+      preamble="from mpmath import mp;from mp_integrator import _kick,_potential,_timestep,particle,jparticle"
+      mp_integrator.pproc=pp_Processor(preamble=preamble,nslices=nslices,pre_pickle=True)
+    elif processor=="proc":
+      mp_integrator.pproc=Processor(preamble="from mpmath import mp")
     else:
       mp_integrator.pproc=Local_Processor()
 
@@ -98,7 +101,7 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
 
 def check_BS_test(N=16):
   hashes={ 16:-1805142856, 32: -1690459273}
-  for p in ["multi","amuse","pp","local"]:
+  for p in ["multi","amuse","pp","local","proc"]:
     h=hash(BS_test(N=N,processor=p))
     if hashes[N]==h:
       print p+" ok"
@@ -186,13 +189,14 @@ def time_kick(N=16,processor="local"):
     nslices=nproc
 
     if processor=="multi":
-      mp_integrator.pproc=MultiProcessor(nslices=nslices,pre_pickle=True,nproc=nproc)
+      mp_integrator.pproc=MultiProcessor(preamble="from mpmath import mp",nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,
-       preamble="from mpmath import mp",pre_pickle=True,
-       channel_type="mpi",verbose=True)
+      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
     elif processor=="pp":
-      mp_integrator.pproc=pp_Processor(nslices=nslices,pre_pickle=True)
+      preamble="from mpmath import mp;from mp_integrator import _kick,_potential,_timestep,particle,jparticle"
+      mp_integrator.pproc=pp_Processor(preamble=preamble,nslices=nslices,pre_pickle=True)
+    elif processor=="proc":
+      mp_integrator.pproc=Processor(preamble="from mpmath import mp")
     else:
       mp_integrator.pproc=Local_Processor()
 
@@ -213,7 +217,7 @@ def time_kick(N=16,processor="local"):
 def check_kick(N=16):
     hashes={ 16: 1762445124, 50:3277754040,150:-1946492655,64: -3541374424,256:-2250164681,
        512: 2466512669,128:-2819487303}
-    for p in ["multi","amuse","pp","local"]:
+    for p in ["multi","amuse","pp","local","proc"]:
       h=hash(time_kick(N=N,processor=p))
       if hashes[N]==h:
         print p+" ok"
@@ -225,6 +229,6 @@ if __name__=="__main__":
 #    cProfile.run('BS_test()','prof')
 #    from mp_integrator_test import BS_test
 #     BS_test(N=8,processor="local",tend=2.)
-#     check_kick(N=128)
+     check_kick(N=128)
 #     time_kick(N=256,processor="amuse")
-    check_BS_test_long(N=8)
+#    check_BS_test(N=16)
