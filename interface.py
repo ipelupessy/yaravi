@@ -69,6 +69,9 @@ class YaraviImplementation(object):
         self._time=self._begin_time
         mp_integrator.pproc=eval(self.processor)
         return 0
+
+    def recommit_parameters(self):
+        return -2
       
     def new_particle(self, index, mass,x, y, z, vx, vy, vz, radius):
         id_ = self._index_counter
