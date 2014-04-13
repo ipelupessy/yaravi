@@ -398,7 +398,8 @@ class bulirschStoer(object):
         (fac*(1-(parts_jk[i].vz-parts_j1k[i].vz)/(parts_jk[i].vz-parts_j1k1[i].vz))-1)
     return parts
 
-  def error_function(self,parts1,parts2):
+  @staticmethod
+  def error_function(parts1,parts2):
       maxdiv=0.
       for p1,p2 in izip(parts1,parts2):
         maxdiv=max( [maxdiv,  abs(p1.x-p2.x), 
@@ -532,7 +533,7 @@ class floating_point_exact_BS(object):
 
     print "timing:", t2-t1,t3-t2,", ratio:",(t2-t1)/(t3-t2)
 
-    error=self.error_function(self.particles1,self.particles2)
+    error=self.error_condition(self.particles1,self.particles2)
 
     while error:
 
@@ -555,13 +556,13 @@ class floating_point_exact_BS(object):
       print "timing (totals):", self.wallclock1,self.wallclock2,self.wallclock1/self.wallclock2
       
       
-      error=self.error_function(self.particles1,self.particles2)
+      error=self.error_condition(self.particles1,self.particles2)
 
     self.particles=self.particles1
     self.time=tend
 
 
-  def error_function(self,parts1,parts2):
+  def error_condition(self,parts1,parts2):
       for p1,p2 in izip(parts1,parts2):
         if ( float(p1.x)!=float(p2.x) or 
              float(p1.y)!=float(p2.y) or
@@ -570,3 +571,6 @@ class floating_point_exact_BS(object):
              float(p1.vy)!=float(p2.vy) or
              float(p1.vz)!=float(p2.vz) ): return True
       return False
+
+  def current_error(self):
+      return bulirschStoer.error_function(self.particles1,self.particles2)

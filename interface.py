@@ -222,6 +222,10 @@ class YaraviImplementation(object):
                       mp_integrator.potential_energy(self.integrator.particles))
         return 0
 
+    def get_current_error(self,err):
+        err.value=float(self.integrator.current_error())
+        return 0
+
 class YaraviInterface(PythonCodeInterface,
                      GravitationalDynamicsInterface, LiteratureReferencesMixIn):
     """
@@ -339,6 +343,13 @@ class YaraviInterface(PythonCodeInterface,
         function.result_type = 'i'
         return function
 
+    @legacy_function      
+    def get_current_error():
+        function = LegacyFunctionSpecification()
+        function.addParameter('error_estimate', dtype='d', direction=function.OUT,unit=units.none)
+        function.result_type = 'i'
+        return function
+        
 class Yaravi(GravitationalDynamics):
 
     def __init__(self, convert_nbody=None, **options):
