@@ -331,6 +331,7 @@ class bulirschStoer(object):
     self.ntimes=0
     self.nstage=2*len(coeff)-1
     self.coeff=[mp.mpf(x) for x in (coeff+coeff[-2::-1])]
+    print "jmax:",jmax,target_error,dt_param,rhombus,fixed_j,MAXLEVEL
     self.jmax=jmax
     self.jcount=0
     self.nsteps=0
@@ -483,6 +484,29 @@ class bulirschStoer(object):
     self.init_evolve(parts)    
     self.evolve_adapt(parts,dt)
 
+class default_BS(object):
+  def __init__(self, dps=20,target_error=1.e-6,**kwargs):
+    self.dps_safety=6
+    self.initial_dps=dps
+    self.time=mp.mpf(0.)
+    self.target_error=target_error
+    self.kwargs=kwargs
+  def commit_particles(self):
+    mp.dps=self.initial_dps
+    while -mp.log10(self.target_error) > mp.dps - self.dps_safety:
+      mp.dps*=2
+      print "(re)setting, target error:",float(-mp.log10(self.target_error)),
+      print "digits:",mp.dps
+    self.particles=copy_particles(self.particles)
+    self.integrator=bulirschStoer(self.target_error,**self.kwargs)
+    self.time=mp.mpf(self.time)
+  def recommit_particles(self):
+    self.commit_particles()  
+  def evolve(self,tend):
+    dt=tend-self.time
+    self.integrator.evolve(self.particles,dt)
+    self.time=tend
+
 class floating_point_exact_BS(object):
   def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,dps=20,**kwargs):
     self.dps_safety=6
@@ -504,6 +528,8 @@ class floating_point_exact_BS(object):
       mp.dps*=2
       print "(re)setting, target error:",float(-mp.log10(self.target_error1)),
       print "digits:",mp.dps  
+    self.time=mp.mpf(self.time)
+
     self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
     self.integrator2=bulirschStoer(self.target_error2,**self.kwargs)
 

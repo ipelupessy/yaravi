@@ -225,10 +225,11 @@ def check_kick(N=16):
         print p+" nook:", h
 
 if __name__=="__main__":
+#    BS_test(N=5,processor="local",tend=10.,prec='1.e-6',res="energy")
 #    import cProfile
 #    cProfile.run('BS_test()','prof')
 #    from mp_integrator_test import BS_test
 #     BS_test(N=8,processor="local",tend=2.)
-     check_kick(N=128)
+#     check_kick(N=128)
 #     time_kick(N=256,processor="amuse")
 #    check_BS_test(N=16)

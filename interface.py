@@ -27,7 +27,8 @@ class YaraviImplementation(object):
         self.epsilon_squared=mp.mpf('0.')
         self.initial_target_error=mp.mpf("1.e-16")
         self.factor=mp.mpf("1.e10")
-        self.initial_dps=20
+        self.integrator_method="floating_point_exact"
+        self.initial_dps=15
 
     def set_timestep_parameter(self, eta):
         self.timestep_parameter=mp.mpf(eta)
@@ -61,11 +62,17 @@ class YaraviImplementation(object):
         return 0  
 
     def commit_parameters(self):
-        self.integrator=mp_integrator.floating_point_exact_BS(
-                                       target_error=self.initial_target_error,
-                                       factor=self.factor,
-                                       dt_param=self.timestep_parameter,
-                                       dps=self.initial_dps)
+        if self.integrator_method=="floating_point_exact":
+          self.integrator=mp_integrator.floating_point_exact_BS(
+                                         target_error=self.initial_target_error,
+                                         factor=self.factor,
+                                         dt_param=self.timestep_parameter,
+                                         dps=self.initial_dps)
+        elif self.integrator_method=="BS":
+          self.integrator=mp_integrator.default_BS(
+                                         target_error=self.initial_target_error,
+                                         dt_param=self.timestep_parameter,
+                                         dps=self.initial_dps)
         self._time=self._begin_time
         mp_integrator.pproc=eval(self.processor)
         return 0
@@ -171,7 +178,8 @@ class YaraviImplementation(object):
             self.particles[key]=self.integrator.particles[i]
           self._time=self.integrator.time
           return 0
-        except:
+        except Exception as ex:
+          print ex
           return -1
 
     def set_begin_time(self,t):
@@ -205,6 +213,15 @@ class YaraviImplementation(object):
     def get_initial_dps(self,t):
         t.value=self.initial_dps
         return 0
+
+    def set_integrator(self,t):
+        self.integrator_method=t
+        return 0
+
+    def get_integrator(self,t):
+        t.value=self.integrator_method
+        return 0
+
 
     def synchronize_model(self):
         return 0    
@@ -344,6 +361,19 @@ class YaraviInterface(PythonCodeInterface,
         return function
 
     @legacy_function      
+    def set_integrator():
+        function = LegacyFunctionSpecification()
+        function.addParameter('integrator', dtype='s', direction=function.IN)
+        function.result_type = 'i'
+        return function
+    @legacy_function      
+    def get_integrator():
+        function = LegacyFunctionSpecification()
+        function.addParameter('integrator', dtype='s', direction=function.OUT)
+        function.result_type = 'i'
+        return function
+
+    @legacy_function      
     def get_current_error():
         function = LegacyFunctionSpecification()
         function.addParameter('error_estimate', dtype='d', direction=function.OUT,unit=units.none)
@@ -424,6 +454,14 @@ class Yaravi(GravitationalDynamics):
             "set_initial_dps", 
             "initial_dps", 
             "initial dps", 
-            default_value = 20
+            default_value = 15
         )        
+
+        object.add_method_parameter(
+            "get_integrator",
+            "set_integrator", 
+            "integrator", 
+            "integrator (floating_point_exact or BS)", 
+            default_value = "floating_point_exact"
+        )
         
