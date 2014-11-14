@@ -26,7 +26,7 @@ def plummer(N):
                                       p.vx.number,p.vy.number,p.vz.number))
     return particles                                   
     
-def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
+def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy",dps=64):
     import time
 
     nproc=4
@@ -44,7 +44,7 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     else:
       mp_integrator.pproc=Local_Processor()
 
-    mp.set_dps(64)
+    mp.set_dps(dps)
     mp_integrator.pproc.exec_("mp.set_dps("+str(mp.dps)+")")
     
     parts=plummer(N) 
@@ -75,7 +75,7 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     e=total_energy(parts)
     print 'de/e0:', ((e-e0)/e0).__float__()
   
-    print 'runtime:', t2-t1
+    print N,processor+' runtime:', t2-t1
     print integrator.nsteps,integrator.jcount,integrator.jcount/float(integrator.nsteps)
     print integrator.nkickstep    
     
@@ -94,21 +94,31 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     
 #    print x[-1],y[-1]
 
-    print parts[0].x,total_energy(parts)
+#    print parts[0].x,total_energy(parts)
     if res=="energy":
       return total_energy(parts)
     else:
       return str(parts[0].x)[0:32]
 
-def check_BS_test(N=16):
-  hashes={ 16:-1805142856, 32: -1690459273}
-  for p in ["multi","amuse","pp","local","proc"]:
-    h=hash(BS_test(N=N,processor=p))
-    if hashes[N]==h:
-      print p+" ok"
-    else:
-      print p+" nook:", h
-
+def check_BS_test(Ns=None):
+  dps=64
+  results={16: "-0.2097788238899595006650143725272014434855335456003604589938999139641"}
+  if Ns is None: Ns=results.keys()
+  check=True
+  for N in Ns:
+    for p in ["multi","amuse","pp","local","proc"]:
+        h=BS_test(N=N,processor=p,dps=dps+6)
+        hr=h.__repr__()
+        if hr.find(results[N])>=0:
+          pass
+#          print p+" ok"
+        else:
+          d=abs(h-mp.mpf(results[N]))/h
+          print d
+          print N,p+" mismatch, got:", hr,len(hr),float(abs(mp.log10(d)))
+          if abs(d)>10**-dps: check=False
+  return check
+      
 def check_BS_test_long(N=16):
   hashes={ 8: 7787870482253759781}
   for p in ["amuse","local"]:
@@ -183,7 +193,7 @@ def ec_BS_test():
 
     print parts[0].x
 
-def time_kick(N=16,processor="local"):
+def time_kick(N=16,processor="local",dps=64):
     import time
     from mp_integrator import kick
 
@@ -202,7 +212,7 @@ def time_kick(N=16,processor="local"):
     else:
       mp_integrator.pproc=Local_Processor()
 
-    mp.set_dps(64)
+    mp.set_dps(dps)
     mp_integrator.pproc.exec_("mp.set_dps("+str(mp.dps)+")")
     
     parts=plummer(N)
@@ -213,26 +223,41 @@ def time_kick(N=16,processor="local"):
     kick(parts,parts,dt)
     t2=time.time()
 
-    print "time:",t2-t1
-    return hash(parts[-1].vz)
+    print N,processor+" time:",t2-t1
+    return parts[-1].vz
     
-def check_kick(N=16):
-    hashes={ 16: 1762445124, 50:3277754040,150:-1946492655,64: -3541374424,256:-2250164681,
-       512: 2466512669,128:-2819487303}
-    for p in ["multi","amuse","pp","local","proc"]:
-      h=hash(time_kick(N=N,processor=p))
-      if hashes[N]==h:
-        print p+" ok"
-      else:
-        print p+" nook:", h
-
+def check_kick(Ns=None):
+    dps=64
+    results={ 16: '0.5280968268833149585365524469736931751421937461245719231626600116459',
+              50: '0.9570351506440379530178266489555425661480746175752162677540570048262',
+              64: '-0.7561747845694916564830825081707286817639452371097957709612294389958',
+              150: "-0.09344415268620983521705314736452944414180898050922914284511780006364",
+              256: "-0.6293985589493140191821290296902117972778559732348390605690993188598",
+              350: "0.735469970603869347834820970508731867404741985456426980852100139499",
+              512: "0.9517024891436366308665374005000831926596595154320406804913855436092"}
+    check=True
+    if Ns is None: Ns=results.keys()
+    for N in Ns:
+      for p in ["multi","amuse","pp","local","proc"]:
+        h=time_kick(N=N,processor=p,dps=dps)
+        hr=h.__repr__()
+        if hr.find(results[N])>=0:
+          pass
+#          print p+" ok"
+        else:
+          d=abs(h-mp.mpf(results[N]))/h
+          print N,p+" mismatch, got:", hr,len(hr),float(abs(mp.log10(d)))
+          if d>10**-dps: check=False
+    return check
+      
 if __name__=="__main__":
+     assert check_BS_test()
+#     assert check_kick()
 #    BS_test(N=5,processor="pp",tend=10.,prec='1.e-6',res="energy")
 #    import cProfile
 #    cProfile.run('BS_test()','prof')
 #    from mp_integrator_test import BS_test
 #     BS_test(N=8,processor="local",tend=2.)
-#     check_kick(N=128)
 #     time_kick(N=256,processor="amuse")
 #    check_BS_test(N=32)
-    BS_test(N=256,processor="amuse",tend=1.,prec='1.e-6',res="energy")
+#    BS_test(N=256,processor="amuse",tend=1.,prec='1.e-6',res="energy")
