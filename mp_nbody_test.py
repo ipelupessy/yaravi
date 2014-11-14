@@ -1,4 +1,4 @@
-from mpmath import mp
+import mp
 import numpy
 import copy
 import cPickle
@@ -33,19 +33,20 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     nslices=nproc
 
     if processor=="multi":
-      mp_integrator.pproc=MultiProcessor(preamble="from mpmath import mp",nslices=nslices,pre_pickle=True,nproc=nproc)
+      mp_integrator.pproc=MultiProcessor(preamble="import mp",nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
+      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="import mp",pre_pickle=True)
     elif processor=="pp":
-      preamble="from mpmath import mp;from mp_integrator import _kick,_potential,_timestep,particle,jparticle"
+      preamble="import mp;from mp_integrator import _kick,_potential,_timestep,particle,jparticle"
       mp_integrator.pproc=pp_Processor(preamble=preamble,nslices=nslices,pre_pickle=True)
     elif processor=="proc":
-      mp_integrator.pproc=Processor(preamble="from mpmath import mp")
+      mp_integrator.pproc=Processor(preamble="import mp")
     else:
       mp_integrator.pproc=Local_Processor()
 
-    mp.dps=64
-
+    mp.set_dps(64)
+    mp_integrator.pproc.exec_("mp.set_dps("+str(mp.dps)+")")
+    
     parts=plummer(N) 
         
     t=0
@@ -93,7 +94,7 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy"):
     
 #    print x[-1],y[-1]
 
-    print parts[0].x
+    print parts[0].x,total_energy(parts)
     if res=="energy":
       return total_energy(parts)
     else:
@@ -122,11 +123,12 @@ def ec_BS_test():
 
 
     mp_integrator.pproc=MultiProcessor(nslices=4,pre_pickle=True)
-#    mp_integrator.pproc=AmuseProcessor(hosts=[None]*4,nslices=4,preamble="from mpmath import mp",pre_pickle=True)
+#    mp_integrator.pproc=AmuseProcessor(hosts=[None]*4,nslices=4,preamble="import mp",pre_pickle=True)
 #    mp_integrator.pproc=pp_Processor(nslices=4,pre_pickle=True)
 #    mp_integrator.pproc=Local_Processor()
 
-    mp.dps=64
+    mp.set_dps(64)
+    mp_integrator.pproc.exec_("mp.set_dps("+str(mp.dps)+")")
 
 #    parts=pythagorean()
 #    parts=two(mratio=1.e9)
@@ -189,19 +191,19 @@ def time_kick(N=16,processor="local"):
     nslices=nproc
 
     if processor=="multi":
-      mp_integrator.pproc=MultiProcessor(preamble="from mpmath import mp",nslices=nslices,pre_pickle=True,nproc=nproc)
+      mp_integrator.pproc=MultiProcessor(preamble="import mp",nslices=nslices,pre_pickle=True,nproc=nproc)
     elif processor=="amuse":
-      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="from mpmath import mp",pre_pickle=True)
+      mp_integrator.pproc=AmuseProcessor(hosts=[None]*nproc,nslices=nslices,preamble="import mp",pre_pickle=True)
     elif processor=="pp":
-      preamble="from mpmath import mp;from mp_integrator import _kick,_potential,_timestep,particle,jparticle"
+      preamble="import mp;from mp_integrator import _kick,_potential,_timestep,particle,jparticle"
       mp_integrator.pproc=pp_Processor(preamble=preamble,nslices=nslices,pre_pickle=True)
     elif processor=="proc":
-      mp_integrator.pproc=Processor(preamble="from mpmath import mp")
+      mp_integrator.pproc=Processor(preamble="import mp")
     else:
       mp_integrator.pproc=Local_Processor()
 
-    mp.dps=64
-    mp_integrator.pproc.exec_("mp.dps="+str(mp.dps))
+    mp.set_dps(64)
+    mp_integrator.pproc.exec_("mp.set_dps("+str(mp.dps)+")")
     
     parts=plummer(N)
 
@@ -225,11 +227,12 @@ def check_kick(N=16):
         print p+" nook:", h
 
 if __name__=="__main__":
-#    BS_test(N=5,processor="local",tend=10.,prec='1.e-6',res="energy")
+#    BS_test(N=5,processor="pp",tend=10.,prec='1.e-6',res="energy")
 #    import cProfile
 #    cProfile.run('BS_test()','prof')
 #    from mp_integrator_test import BS_test
 #     BS_test(N=8,processor="local",tend=2.)
 #     check_kick(N=128)
 #     time_kick(N=256,processor="amuse")
-#    check_BS_test(N=16)
+#    check_BS_test(N=32)
+    BS_test(N=256,processor="amuse",tend=1.,prec='1.e-6',res="energy")

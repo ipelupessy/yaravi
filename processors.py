@@ -121,7 +121,7 @@ class pp_Processor(object):
     self._jobs=deque()
     self._last_finished_job=None
     self.depfuncs=depfuncs
-    self.modules=("cPickle","mpmath")
+    self.modules=("cPickle","mp","mpmath","gmpy2")
   def openclients(self):
     self.clients=[]    
     for ppserver,ncpu in self.ppservers:

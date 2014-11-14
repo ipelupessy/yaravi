@@ -1,4 +1,4 @@
-from mpmath import mp
+import mp
 import numpy
 import copy
 import cPickle
@@ -189,7 +189,7 @@ def kinetic_energy(parts):
 
 def potential_energy(parts):
     global pproc
-    pproc.exec_("mp.dps="+str(mp.dps))
+    pproc.exec_("mp.set_dps("+str(mp.dps)+")")
 
     potential(parts,parts)
     return reduce(lambda e,p: e+p.m*p.pot,parts,0.)/2
@@ -458,7 +458,7 @@ class bulirschStoer(object):
   def init_evolve(self,parts):
     global pproc
     self.clevel=0
-    pproc.exec_("mp.dps="+str(mp.dps))
+    pproc.exec_("mp.set_dps("+str(mp.dps)+")")
 
 
   def evolve_adapt(self,parts,dt,calctimestep=True):
@@ -492,9 +492,9 @@ class default_BS(object):
     self.target_error=target_error
     self.kwargs=kwargs
   def commit_particles(self):
-    mp.dps=self.initial_dps
+    mp.set_dps(self.initial_dps)    
     while -mp.log10(self.target_error) > mp.dps - self.dps_safety:
-      mp.dps*=2
+      mp.set_dps(2*mp.dps)
       print "(re)setting, target error:",float(-mp.log10(self.target_error)),
       print "digits:",mp.dps
     self.particles=copy_particles(self.particles)
@@ -523,11 +523,11 @@ class floating_point_exact_BS(object):
 
     self.target_error1=self.initial_target_error/self.error_factor
     self.target_error2=self.initial_target_error
-    mp.dps=self.initial_dps
+    mp.set_dps(self.initial_dps)    
     while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
-      mp.dps*=2
+      mp.set_dps(2*mp.dps)
       print "(re)setting, target error:",float(-mp.log10(self.target_error1)),
-      print "digits:",mp.dps  
+      print "digits:",mp.dps
     self.time=mp.mpf(self.time)
 
     self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
@@ -570,7 +570,7 @@ class floating_point_exact_BS(object):
  
       self.target_error1=self.target_error1/self.error_factor
       while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
-        mp.dps*=2
+        mp.set_dps(2*mp.dps)
         print "extending, target error:",float(-mp.log10(self.target_error1)),
         print "digits:",mp.dps  
       self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)

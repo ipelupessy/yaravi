@@ -1,4 +1,4 @@
-from mpmath import mp
+import mp
 import mp_integrator
 from mp_integrator import Local_Processor, MultiProcessor,AmuseProcessor,pp_Processor
 import operator
@@ -9,12 +9,6 @@ from amuse.community.interface.gd import GravitationalDynamics
 from amuse.rfi.core import PythonCodeInterface
 
 from amuse.units import units,nbody_system
-
-mp.dps=20
-
-# todo: 
-# - setting/ dumping checkpoints
-# - synchronize parameters with actual used parameters
 
 class YaraviImplementation(object):
     def __init__(self):
