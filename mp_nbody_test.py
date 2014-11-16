@@ -98,35 +98,47 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy",dps=64):
     if res=="energy":
       return total_energy(parts)
     else:
-      return str(parts[0].x)[0:32]
+      return parts[0].x
 
 def check_BS_test(Ns=None):
   dps=64
-  results={16: "-0.2097788238899595006650143725272014434855335456003604589938999139641"}
+  results={16: "-0.2097788238899595006650143725272014434855335456003604589938999139641",
+           32: "-0.2618649325481234815725778388341436310813732608134373611530832641849"}
   if Ns is None: Ns=results.keys()
   check=True
   for N in Ns:
     for p in ["multi","amuse","pp","local","proc"]:
-        h=BS_test(N=N,processor=p,dps=dps+6)
+        h=BS_test(N=N,processor=p,dps=dps)
         hr=h.__repr__()
-        if hr.find(results[N])>=0:
+        if hr.find(results[N][:dps-5])>=0:
           pass
 #          print p+" ok"
         else:
           d=abs(h-mp.mpf(results[N]))/h
           print d
           print N,p+" mismatch, got:", hr,len(hr),float(abs(mp.log10(d)))
-          if abs(d)>10**-dps: check=False
+          if abs(d)>10**(-dps+5): check=False
   return check
       
-def check_BS_test_long(N=16):
-  hashes={ 8: 7787870482253759781}
-  for p in ["amuse","local"]:
-    h=hash(BS_test(N=N,processor=p,tend=0.5,prec='1.e-32',res="x"))
-    if hashes[N]==h:
-      print p+" ok"
-    else:
-      print p+" nook:", h
+def check_BS_test_long(Ns=None):
+  dps=64
+  results={8 :  "0.5136878528165021745895011935069557781577860512538393575491621445983",
+           16: "0.1779243262721065866057229914813588355640085932912539562135719013325"}
+  if Ns is None: Ns=results.keys()
+  check=True
+  for N in Ns:
+    for p in ["multi","amuse","pp","local","proc"]:
+        h=BS_test(N=N,processor=p,dps=dps,tend=1.,prec='1.e-32',res="x")
+        hr=h.__repr__()
+        if hr.find(results[N][:dps-5])>=0:
+          pass
+#          print p+" ok"
+        else:
+          d=abs(h-mp.mpf(results[N]))/h
+          print d
+          print N,p+" mismatch, got:", hr,len(hr),float(abs(mp.log10(d)))
+          if abs(d)>10**(-dps+5): check=False
+  return check
 
 def ec_BS_test():
     import time
@@ -251,8 +263,10 @@ def check_kick(Ns=None):
     return check
       
 if __name__=="__main__":
+     assert check_kick()
      assert check_BS_test()
-#     assert check_kick()
+     assert check_BS_test_long()
+     
 #    BS_test(N=5,processor="pp",tend=10.,prec='1.e-6',res="energy")
 #    import cProfile
 #    cProfile.run('BS_test()','prof')

@@ -1,6 +1,6 @@
 import math
 
-BACKEND="mpmath"
+BACKEND="gmpy2"
 
 #matches mpmath
 def prec_to_dps(n):
