@@ -246,13 +246,13 @@ class YaraviInterface(PythonCodeInterface,
     
     Yaravi is a code to solve the astrophysical N-body problem 
     guaranteed to python float( 64-bit floating point) precision. It 
-    uses an python implementation of the Brutus solver (Bulirsch-Stoer 
-    with adaptive timestepping). It has crude support for 
-    parallelization. Note that (re)commit_particles calls generate a 
-    checkpoint in the code: the solution found is guaranteed to floating 
-    point precision from the last check point.
+    uses an python implementation of a Bulirsch-Stoer integrator with 
+    adaptive timestepping). It has crude support for parallelization. 
+    Note that (re)commit_particles calls generate a checkpoint in the 
+    code: the solution found is guaranteed to floating point precision 
+    from the last check point.
 
-    .. [#] based on Boekholt et al., python implementation F.I. Pelupessy
+    .. [#] integrator: Boekholt et al., python implementation F.I. Pelupessy
 
     """
 

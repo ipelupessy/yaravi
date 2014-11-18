@@ -44,10 +44,11 @@ class reducers(object):
     return result
 
 class NbodyProcessor(object):
-  def __init__(self,nslices=1,nblocks=None):
+  def __init__(self,nslices=1,nblocks=None,pre_pickle=False):
     self.nslices=nslices
     if nblocks is None: 
       nblocks=nslices
+    self.pre_pickle=pre_pickle
     n=fsmrt(nblocks)
     ijblocks=(n,nblocks/n)
     self.nblocks=nblocks
@@ -122,27 +123,26 @@ class Processor(processors.Processor,NbodyProcessor):
 
 class MultiProcessor(processors.MultiProcessor,NbodyProcessor):
   def __init__(self,preamble="pass",pre_pickle=True,nproc=4,nslices=None,nblocks=None):
-    processors.MultiProcessor.__init__(self,preamble=preamble,pre_pickle=pre_pickle,nproc=nproc)
+    processors.MultiProcessor.__init__(self,preamble=preamble,nproc=nproc)
     if nslices is None: nslices=self.nproc
     if nblocks is None: nblocks=nslices
-    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks,pre_pickle=pre_pickle)
 
 class AmuseProcessor(processors.AmuseProcessor,NbodyProcessor):
   def __init__(self,hosts=[],preamble="pass", pre_pickle=True,channel_type="mpi",verbose=False,
                       nslices=None,nblocks=None):
-    processors.AmuseProcessor.__init__(self,hosts=hosts,preamble=preamble, pre_pickle=pre_pickle,
+    processors.AmuseProcessor.__init__(self,hosts=hosts,preamble=preamble,
                                          channel_type=channel_type,verbose=verbose)
     if nslices is None: nslices=self.nproc
     if nblocks is None: nblocks=nslices
-    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks,pre_pickle=pre_pickle)
     
 class pp_Processor(processors.pp_Processor,NbodyProcessor):
   def __init__(self,preamble="pass",pre_pickle=True,ppservers=(),nslices=None,nblocks=None):    
-    processors.pp_Processor.__init__(self,preamble=preamble,pre_pickle=pre_pickle,
-                                       ppservers=ppservers)
+    processors.pp_Processor.__init__(self,preamble=preamble, ppservers=ppservers)
     if nslices is None: nslices=self.nproc
     if nblocks is None: nblocks=nslices
-    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks)
+    NbodyProcessor.__init__(self,nslices=nslices,nblocks=nblocks,pre_pickle=pre_pickle)
 
 class Local_Processor(object):
   def exec_(self,arg):

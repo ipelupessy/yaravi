@@ -22,10 +22,9 @@ while processor.wait():
 
 #trivial local processor
 class Processor(object):
-  def __init__(self,preamble="pass",pre_pickle=False):
+  def __init__(self,preamble="pass"):
     self.nproc=1
     self._jobs=deque()
-    self.pre_pickle=pre_pickle
     self.context=dict()
     exec preamble in self.context
   def submit_job(self,f,args=(),kwargs={}):
@@ -48,10 +47,9 @@ class Processor(object):
     return self._last_finished_job
 
 class MultiProcessor(object):
-  def __init__(self,preamble="pass",pre_pickle=True,nproc=4):
+  def __init__(self,preamble="pass",nproc=4):
     from multiprocessing import Pool
     self.preamble=preamble
-    self.pre_pickle=pre_pickle
     exec self.preamble
     self.pool=Pool(processes=nproc)
     self.nproc=nproc
@@ -81,10 +79,9 @@ class MultiProcessor(object):
     return self._last_finished_job       
 
 class AmuseProcessor(object):
-  def __init__(self,hosts=[],preamble="pass", pre_pickle=True,channel_type="mpi",verbose=False):
+  def __init__(self,hosts=[],preamble="pass",channel_type="mpi",verbose=False):
     from amuse.ext.job_server import JobServer
     self.preamble=preamble
-    self.pre_pickle=pre_pickle
     self.amuse_servers=hosts
     self.job_server=JobServer(self.amuse_servers, channel_type=channel_type,
       preamble=self.preamble,verbose=verbose,no_wait=True)
@@ -105,7 +102,7 @@ class AmuseProcessor(object):
 # ppserver=(("galaxy",32),("koppoel",4),("biesbosch",4),("gaasp",3))
 # note hardcoded strw environment
 class pp_Processor(object):
-  def __init__(self,preamble="pass",pre_pickle=True,ppservers=(),depfuncs=()):
+  def __init__(self,preamble="pass",ppservers=(),depfuncs=()):
     import pp
     self.ppservers=()
     if len(self.ppservers)>0:
@@ -117,7 +114,6 @@ class pp_Processor(object):
     print "for a total of", ncpu," cpus"
     self.nproc=ncpu
     self.preamble=preamble
-    self.pre_pickle=pre_pickle
     self._jobs=deque()
     self._last_finished_job=None
     self.depfuncs=depfuncs
