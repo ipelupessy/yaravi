@@ -425,7 +425,7 @@ class bulirschStoer(object):
     while error/dt > self.target_error:
       j=j+1
       if j>self.jmax:
-        print "fail"
+        print "fail",dt,error,self.target_error,mp.dps
         del jline,j1line
         self.evolve_BS(parts,dt/2)
         self.evolve_BS(parts,dt/2)
@@ -486,7 +486,7 @@ class bulirschStoer(object):
 
 class default_BS(object):
   def __init__(self, dps=20,target_error=1.e-6,**kwargs):
-    self.dps_safety=6
+    self.dps_safety=10
     self.initial_dps=dps
     self.time=mp.mpf(0.)
     self.target_error=target_error
@@ -509,7 +509,7 @@ class default_BS(object):
 
 class floating_point_exact_BS(object):
   def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,dps=20,**kwargs):
-    self.dps_safety=6
+    self.dps_safety=10
     print "fac:",factor
     self.error_factor=factor
     self.initial_target_error=target_error
@@ -524,8 +524,8 @@ class floating_point_exact_BS(object):
     self.target_error1=self.initial_target_error/self.error_factor
     self.target_error2=self.initial_target_error
     mp.set_dps(self.initial_dps)    
-    while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
-      mp.set_dps(2*mp.dps)
+    if int(-mp.log10(self.target_error1)) > mp.dps - self.dps_safety:
+      mp.set_dps(-mp.log10(self.target_error1)+self.dps_safety)
       print "(re)setting, target error:",float(-mp.log10(self.target_error1)),
       print "digits:",mp.dps
     self.time=mp.mpf(self.time)
@@ -569,8 +569,8 @@ class floating_point_exact_BS(object):
       self.wallclock2=self.wallclock1
  
       self.target_error1=self.target_error1/self.error_factor
-      while -mp.log10(self.target_error1) > mp.dps - self.dps_safety:
-        mp.set_dps(2*mp.dps)
+      if int(-mp.log10(self.target_error1)) > mp.dps - self.dps_safety:
+        mp.set_dps(-mp.log10(self.target_error1)+ self.dps_safety)
         print "extending, target error:",float(-mp.log10(self.target_error1)),
         print "digits:",mp.dps  
       self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
