@@ -6,6 +6,7 @@ AMUSE_DIR?=../../../..
 CODE_GENERATOR = $(AMUSE_DIR)/build.py
 
 MPMATH_AVAILABLE := $(shell $(PYTHON) -c "import mpmath"  1>&2 2> /dev/null && echo "yes" || echo "no")
+GMPY2_AVAILABLE := $(shell $(PYTHON) -c "import gmpy2"  1>&2 2> /dev/null && echo "yes" || echo "no")
 
 all: test yaravi_worker
 
@@ -17,6 +18,10 @@ test:
 	@echo "Testing import of mpmath:"
 ifeq ($(MPMATH_AVAILABLE),no)
 	$(error "Python import mpmath not available - install this first")
+endif
+	@echo "Testing import of gmpy2:"
+ifeq ($(GMPY2_AVAILABLE),no)
+	$(error "Python import gmpy2 not available - install this first")
 endif
 	@echo "Tests successful!"
 	@echo
