@@ -266,7 +266,7 @@ def kick(iparts,jparts,dt):
     ipart.vy+=dv[1]
     ipart.vz+=dv[2]
 
-def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
+def _timestep(iparts,jparts, rarvratio=1.,max_timestep=1000.):
     sqrt2=mp.sqrt(2.)
     result=[]
     for ipart in iparts:
@@ -285,7 +285,7 @@ def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
           vdotdr2=(dvx*dx+dvy*dy+dvz*dz)/dr2
           dv2=dvx**2+dvy**2+dvz**2
           mu=ipart.m+jpart.m
-          tau=rarvratio*dt_param/sqrt2*mp.sqrt(dr3/mu)
+          tau=rarvratio/sqrt2*mp.sqrt(dr3/mu)
           dtau=3*tau*vdotdr2/2.
           if dtau>1.:
             dtau=1.
@@ -293,7 +293,7 @@ def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
           if tau< timestep:
             timestep=tau
           if dv2>0:
-            tau=dt_param*dr/mp.sqrt(dv2)
+            tau=dr/mp.sqrt(dv2)
             dtau=tau*vdotdr2*(1+mu/(dv2*dr))  
             if dtau>1.:
               dtau=1.
@@ -303,26 +303,29 @@ def _timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
       result.append(timestep)
     return result
 
-def pickled_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
-  return _timestep(iparts,cPickle.loads(jparts), dt_param, rarvratio=rarvratio,max_timestep=max_timestep)
-def pickled2_timestep(iparts,jparts, dt_param, rarvratio=1.,max_timestep=1000.):
-  return _timestep(cPickle.loads(iparts),cPickle.loads(jparts), dt_param, rarvratio=rarvratio,max_timestep=max_timestep)
+def pickled_timestep(iparts,jparts, rarvratio=1.,max_timestep=1000.):
+  return _timestep(iparts,cPickle.loads(jparts), rarvratio=rarvratio,max_timestep=max_timestep)
+def pickled2_timestep(iparts,jparts, rarvratio=1.,max_timestep=1000.):
+  return _timestep(cPickle.loads(iparts),cPickle.loads(jparts), rarvratio=rarvratio,max_timestep=max_timestep)
 
-def timestep(iparts,jparts,dt_param, rarvratio=1.,max_timestep=max_timestep):
-  result=pproc.evaluate2(_timestep, iparts, jparts,dt_param,rarvratio,max_timestep)
+def timestep(iparts,jparts, rarvratio=1.,max_timestep=max_timestep):
+  result=pproc.evaluate2(_timestep, iparts, jparts,rarvratio,max_timestep)
   for ipart,timestep in izip(iparts,result):
     ipart.timestep=timestep
 
 def global_timestep(parts):
   return reduce(lambda x,y: min(x,y.timestep),parts,max_timestep)
+
+
+class MaxJError(Exception):
+  pass
+class ConvergenceError(Exception):
+  pass
       
 class bulirschStoer(object):  
-  def __init__(self,target_error, dt_param=mp.mpf('1.'), coeff=[1.], 
-                 MAXLEVEL=64,jmax=64,rhombus=False,fixed_j=0):
-    self.dt_param=dt_param
-    self.dtmin=target_error
+  def __init__(self,target_error, coeff=[1.],jmax=64,rhombus=False,fixed_j=0):
+    print "initializing bulirschStoer:",jmax,target_error,rhombus,fixed_j
     self.target_error=target_error
-    self.MAXLEVEL=MAXLEVEL
     self.nkickstep=0
     self.nkicks=0
     self.ndriftstep=0
@@ -331,17 +334,18 @@ class bulirschStoer(object):
     self.ntimes=0
     self.nstage=2*len(coeff)-1
     self.coeff=[mp.mpf(x) for x in (coeff+coeff[-2::-1])]
-    print "jmax:",jmax,target_error,dt_param,rhombus,fixed_j,MAXLEVEL
-    self.jmax=jmax
+    self.jmax=jmax if jmax>8 else 8
     self.jcount=0
     self.nsteps=0
     self.rhombus=rhombus
     self.fixed_j=fixed_j
 
+    self.set_kick_drift_coeff()
 
+  def set_kick_drift_coeff(self):
     self.drift_coeff=[]
     self.kick_coeff=[]
-    for j in range(jmax):
+    for j in range(self.jmax):
       n=self.nsequence(j+1)
       c=n*map(lambda x: x/n,self.coeff)
       d=copy.deepcopy(c)
@@ -411,25 +415,16 @@ class bulirschStoer(object):
                               abs(p1.vz-p2.vz) ])
       return maxdiv
 
-  def evolve_BS(self,parts,dt):
+  def bs_step(self,parts,dt):
 
     self.nsteps+=1
 
-#    if dt<self.dtmin:
-#      raise Exception
-
-    error=1+2*self.target_error*dt
+    error=1+2.*self.target_error*dt
     j=0
     jline=[]
     j1line=[]
     while error/dt > self.target_error:
       j=j+1
-      if j>self.jmax:
-        print "fail",dt,error,self.target_error,mp.dps
-        del jline,j1line
-        self.evolve_BS(parts,dt/2)
-        self.evolve_BS(parts,dt/2)
-        return
 
       self.jcount+=1
 
@@ -445,6 +440,7 @@ class bulirschStoer(object):
           jline.append( self.aitkenneville(j,k,jline[k],j1line[k]) )
         else:
           jline.append( self.rhombusrule(j,k,jline[k],j1line[k],j1line[k-1]) )
+      old_error=error
       if j1line==[]:
         error=1+2*self.target_error*dt
       else:
@@ -452,53 +448,91 @@ class bulirschStoer(object):
 #        error=self.error_function(jline[-1],jline[-2])
       if j==self.fixed_j:
         break
+
+      if j==self.jmax:
+        print "jmax fail",dt,error,self.target_error,mp.dps
+        del jline,j1line
+        raise MaxJError("bulirsch-stoer J exceeded")
+      if j>6 and error>old_error:
+        print "convergence:", float(error),float(old_error),mp.dps
+        del jline,j1line
+        raise ConvergenceError("bulirsch-stoer not converging")        
+    self.actualj=j
     parts[:]=jline[-1]
-#    print 'error:', error,error/dt
+  def evolve(self,parts,dt):
+    self.bs_step(parts,dt)
     
-  def init_evolve(self,parts):
-    global pproc
-    self.clevel=0
-    pproc.exec_("mp.set_dps("+str(mp.dps)+")")
-
-
-  def evolve_adapt(self,parts,dt,calctimestep=True):
-    self.clevel+=1
-    if self.clevel> self.MAXLEVEL:
-      print "clevel > MAXLEVEL"
-      raise Exception
+class adaptive_bulirschStoer(bulirschStoer):  
+  def __init__(self,target_error, dt_param=1., coeff=[1.], 
+                 jmax=64,rhombus=False,fixed_j=0):
+    self.max_dt_param=dt_param
+    self.dt_param=dt_param
+    bulirschStoer.__init__(self,target_error, coeff=coeff,jmax=jmax,rhombus=rhombus,fixed_j=fixed_j)
+    
+  def evolve(self,parts,dt,calctimestep=True):
     if calctimestep:
       for part in parts:
         part.timestep=max_timestep
-      timestep(parts,parts,dt_param=self.dt_param)
+      timestep(parts,parts)
       self.ntimes+=len(parts)**2
       self.ntimecalls+=1
     dtsys=global_timestep(parts)
-    if dtsys < dt:
-      self.evolve_adapt(parts,dt/2,calctimestep=False)
-      self.evolve_adapt(parts,dt/2,calctimestep=True)
-    else:
-      self.evolve_BS(parts,dt)
-    self.clevel-=1  
+    if self.dt_param*dtsys > dt:
+      try:
+        self.bs_step(parts,dt)
+#        print self.dt_param,self.actualj
+        if self.actualj<8 and \
+           self.actualj<self.jmax/2 and \
+           self.dt_param<self.max_dt_param:
+          self.dt_param*=2
+          print "resetting dtparam to:",self.dt_param
+        return
+      except MaxJError:
+        self.dt_param*=0.5
+        print "resetting dtparam to:",self.dt_param
+    self.evolve(parts,dt/2,calctimestep=False)
+    self.evolve(parts,dt/2,calctimestep=True)
 
-  def evolve(self,parts,dt):
-    self.init_evolve(parts)    
-    self.evolve_adapt(parts,dt)
+class mp_bulirschStoer(bulirschStoer):
+  def __init__(self,target_error, dps=15, dps_step=10,coeff=[1.],jmax=64,rhombus=False,fixed_j=0):
+    self.dps=dps
+    self.dps_step=dps_step
+    bulirschStoer.__init__(self,target_error, coeff=coeff,jmax=jmax,rhombus=rhombus,fixed_j=fixed_j)
+
+  def bs_step(self,parts,dt):
+    global pproc
+    if self.dps!=mp.dps:
+      print "resetting dps to:", self.dps
+      mp.set_dps(self.dps)
+      pproc.exec_("mp.set_dps("+str(mp.dps)+")")
+      self.set_kick_drift_coeff()
+
+    try:
+      bulirschStoer.bs_step(self,parts,dt)
+    except ConvergenceError:
+      self.dps=self.dps+self.dps_step
+      self.bs_step(parts,dt)
+
+class mp_adaptive_bulirschStoer(adaptive_bulirschStoer,mp_bulirschStoer):
+  def __init__(self,target_error, dt_param=0.5, dps=15, dps_step=10,coeff=[1.], 
+                 jmax=64,rhombus=False,fixed_j=0):
+    self.max_dt_param=dt_param
+    self.dt_param=dt_param
+    self.dps=dps
+    self.dps_step=dps_step
+    bulirschStoer.__init__(self,target_error, coeff=coeff,jmax=jmax,rhombus=rhombus,fixed_j=fixed_j)
+    
 
 class default_BS(object):
-  def __init__(self, dps=20,target_error=1.e-6,**kwargs):
-    self.dps_safety=10
-    self.initial_dps=dps
+  def __init__(self,target_error=1.e-6,**kwargs):
     self.time=mp.mpf(0.)
     self.target_error=target_error
     self.kwargs=kwargs
   def commit_particles(self):
-    mp.set_dps(self.initial_dps)    
-    while -mp.log10(self.target_error) > mp.dps - self.dps_safety:
-      mp.set_dps(2*mp.dps)
-      print "(re)setting, target error:",float(-mp.log10(self.target_error)),
-      print "digits:",mp.dps
-    self.particles=copy_particles(self.particles)
-    self.integrator=bulirschStoer(self.target_error,**self.kwargs)
+    kwargs=self.kwargs.copy()
+    if "dps" not in kwargs:
+      kwargs["dps"]=min(-mp.log10(self.target_error)+4,15)
+    self.integrator=mp_adaptive_bulirschStoer(self.target_error,**kwargs)
     self.time=mp.mpf(self.time)
   def recommit_particles(self):
     self.commit_particles()  
@@ -508,30 +542,28 @@ class default_BS(object):
     self.time=tend
 
 class floating_point_exact_BS(object):
-  def __init__(self, target_error=mp.mpf("1.e-16"),factor=1000,dps=20,**kwargs):
-    self.dps_safety=10
-    print "fac:",factor
+  def __init__(self, target_error=1.e-16,factor=1000,**kwargs):
     self.error_factor=factor
     self.initial_target_error=target_error
-    self.initial_dps=dps
-    self.time=mp.mpf(0.)
+    self.time=0.
     self.particles=[]
     self.checkpoint=[]
     self.checkpoint_time=self.time
     self.kwargs=kwargs
   def commit_particles(self):
-
     self.target_error1=self.initial_target_error/self.error_factor
     self.target_error2=self.initial_target_error
-    mp.set_dps(self.initial_dps)    
-    if int(-mp.log10(self.target_error1)) > mp.dps - self.dps_safety:
-      mp.set_dps(-mp.log10(self.target_error1)+self.dps_safety)
-      print "(re)setting, target error:",float(-mp.log10(self.target_error1)),
-      print "digits:",mp.dps
-    self.time=mp.mpf(self.time)
 
-    self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
-    self.integrator2=bulirschStoer(self.target_error2,**self.kwargs)
+    kwargs1=self.kwargs.copy()
+    kwargs2=self.kwargs.copy()
+
+    if "dps" not in kwargs1:
+      kwargs1["dps"]=max(-mp.log10(self.target_error1)+6,15)
+    if "dps" not in kwargs2:
+      kwargs2["dps"]=max(-mp.log10(self.target_error1)+6,15)
+
+    self.integrator1=mp_adaptive_bulirschStoer(self.target_error1,**kwargs1)
+    self.integrator2=mp_adaptive_bulirschStoer(self.target_error2,**kwargs2)
 
     self.checkpoint=copy_particles(self.particles)
     self.particles1=self.particles
@@ -542,7 +574,7 @@ class floating_point_exact_BS(object):
     self.wallclock2=0
     
   def recommit_particles(self):
-    self.commit_particles()  
+    self.commit_particles()
   def evolve(self,tend):
     dt=tend-self.time
     
@@ -569,11 +601,12 @@ class floating_point_exact_BS(object):
       self.wallclock2=self.wallclock1
  
       self.target_error1=self.target_error1/self.error_factor
-      if int(-mp.log10(self.target_error1)) > mp.dps - self.dps_safety:
-        mp.set_dps(-mp.log10(self.target_error1)+ self.dps_safety)
-        print "extending, target error:",float(-mp.log10(self.target_error1)),
-        print "digits:",mp.dps  
-      self.integrator1=bulirschStoer(self.target_error1,**self.kwargs)
+      kwargs1=self.kwargs.copy()
+
+      if "dps" not in kwargs1:
+        kwargs1["dps"]=max(-mp.log10(self.target_error1)+6,15)
+
+      self.integrator1=mp_adaptive_bulirschStoer(self.target_error1,**kwargs1)
       self.particles1=copy_particles(self.checkpoint)
       t1=time.time()
       self.integrator1.evolve(self.particles1,tend-self.checkpoint_time)

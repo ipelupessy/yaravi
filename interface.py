@@ -20,7 +20,7 @@ class YaraviImplementation(object):
         self.timestep_parameter=mp.mpf('1.')
         self.epsilon_squared=mp.mpf('0.')
         self.initial_target_error=mp.mpf("1.e-16")
-        self.factor=mp.mpf("1.e10")
+        self.factor=mp.mpf("1.e6")
         self.integrator_method="floating_point_exact"
         self.initial_dps=15
 
@@ -59,14 +59,12 @@ class YaraviImplementation(object):
         if self.integrator_method=="floating_point_exact":
           self.integrator=mp_integrator.floating_point_exact_BS(
                                          target_error=self.initial_target_error,
-                                         factor=self.factor,
-                                         dt_param=self.timestep_parameter,
-                                         dps=self.initial_dps)
+                                         factor=self.factor
+                                         )
         elif self.integrator_method=="BS":
           self.integrator=mp_integrator.default_BS(
-                                         target_error=self.initial_target_error,
-                                         dt_param=self.timestep_parameter,
-                                         dps=self.initial_dps)
+                                         target_error=self.initial_target_error
+                                         )
         self._time=self._begin_time
         mp_integrator.pproc=eval(self.processor)
         return 0
@@ -440,7 +438,7 @@ class Yaravi(GravitationalDynamics):
             "set_factor", 
             "factor", 
             "factor for decrease in target error", 
-            default_value = 1.e10
+            default_value = 1.e6
         )        
         
         object.add_method_parameter(
