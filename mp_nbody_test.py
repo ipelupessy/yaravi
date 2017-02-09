@@ -10,7 +10,7 @@ from matplotlib import pyplot
 import itertools
 
 import mp_integrator
-from mp_integrator import bulirschStoer,particle,total_energy#,error_controlled_BS
+from mp_integrator import mp_adaptive_bulirschStoer,particle,total_energy#,error_controlled_BS
 from mp_integrator import Local_Processor,pp_Processor,AmuseProcessor,MultiProcessor,Processor
 
 def plummer(N):
@@ -54,7 +54,7 @@ def BS_test(N=16,processor="local",tend=1./8,prec='1.e-16',res="energy",dps=64):
     dt=mp.mpf(1)/mp.mpf(8)
     dt_param=mp.mpf('1.')
 
-    integrator=bulirschStoer(mp.mpf(prec),dt_param)
+    integrator=mp_adaptive_bulirschStoer(mp.mpf(prec),dt_param,dps=dps)
 
     e0=total_energy(parts)
 
@@ -114,8 +114,8 @@ def check_BS_test(Ns=None):
           pass
 #          print p+" ok"
         else:
-          d=abs(h-mp.mpf(results[N]))/h
-          print d
+          d=abs((h-mp.mpf(results[N]))/h)
+          print d,h
           print N,p+" mismatch, got:", hr,len(hr),float(abs(mp.log10(d)))
           if abs(d)>10**(-dps+5): check=False
   return check
@@ -263,8 +263,8 @@ def check_kick(Ns=None):
     return check
       
 if __name__=="__main__":
-     assert check_kick()
-     assert check_BS_test()
+#     assert check_kick()
+#     assert check_BS_test()
      assert check_BS_test_long()
      
 #    BS_test(N=5,processor="pp",tend=10.,prec='1.e-6',res="energy")
