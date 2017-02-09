@@ -531,7 +531,7 @@ class default_BS(object):
   def commit_particles(self):
     kwargs=self.kwargs.copy()
     if "dps" not in kwargs:
-      kwargs["dps"]=min(-mp.log10(self.target_error)+4,15)
+      kwargs["dps"]=max(int(-mp.log10(self.target_error)+6),15)
     self.integrator=mp_adaptive_bulirschStoer(self.target_error,**kwargs)
     self.time=mp.mpf(self.time)
   def recommit_particles(self):
@@ -558,9 +558,9 @@ class floating_point_exact_BS(object):
     kwargs2=self.kwargs.copy()
 
     if "dps" not in kwargs1:
-      kwargs1["dps"]=max(-mp.log10(self.target_error1)+6,15)
+      kwargs1["dps"]=max(int(-mp.log10(self.target_error1)+6),15)
     if "dps" not in kwargs2:
-      kwargs2["dps"]=max(-mp.log10(self.target_error1)+6,15)
+      kwargs2["dps"]=max(int(-mp.log10(self.target_error1)+6),15)
 
     self.integrator1=mp_adaptive_bulirschStoer(self.target_error1,**kwargs1)
     self.integrator2=mp_adaptive_bulirschStoer(self.target_error2,**kwargs2)
@@ -604,7 +604,7 @@ class floating_point_exact_BS(object):
       kwargs1=self.kwargs.copy()
 
       if "dps" not in kwargs1:
-        kwargs1["dps"]=max(-mp.log10(self.target_error1)+6,15)
+        kwargs1["dps"]=max(int(-mp.log10(self.target_error1)+6),15)
 
       self.integrator1=mp_adaptive_bulirschStoer(self.target_error1,**kwargs1)
       self.particles1=copy_particles(self.checkpoint)
