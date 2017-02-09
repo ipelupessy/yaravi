@@ -250,7 +250,8 @@ class YaraviInterface(PythonCodeInterface,
     code: the solution found is guaranteed to floating point precision 
     from the last check point.
 
-    .. [#] integrator: Boekholt et al., python implementation F.I. Pelupessy
+    .. [#] integrator: Boekholt & Portegies Zwart ,Computational Astrophysics and Cosmology, Volume 2, article id.2, 21 pp.
+    .. [#] python implementation: F.I. Pelupessy
 
     """
 
