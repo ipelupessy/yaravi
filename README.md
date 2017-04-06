@@ -2,10 +2,10 @@
 
 ## Yet AnotheR Arithmetic-precision Varying Integrator ##
     
-Yaravi is a code to solve the astrophysical N-body problem 
-in arbitrary precision arithmatic, with a default target of 
-the python float( 64-bit floating point) precision. It 
-uses a python implementation of the Bulirsch-Stoer integrator with 
+Yaravi is a python code to solve the astrophysical N-body problem 
+in arbitrary precision arithmetic, with a default target of 
+the python float( 64-bit floating point) precision. It uses, like
+the Brutus code, an implementation of the Bulirsch-Stoer integrator with 
 adaptive timestepping. It has crude support for parallelization. 
 
 It can be used through the AMUSE interface (included) or seperately if
