@@ -313,6 +313,34 @@ def timestep(iparts,jparts,dt_param, rarvratio=1.,max_timestep=max_timestep):
   for ipart,timestep in izip(iparts,result):
     ipart.timestep=timestep
 
+def _error_estimator(iparts,jparts):
+    result=[]
+    for ipart in iparts:
+      err=0
+      for jpart in jparts:
+        dx=ipart.x-jpart.x  
+        dy=ipart.y-jpart.y  
+        dz=ipart.z-jpart.z
+        dr2=dx**2+dy**2+dz**2
+        if dr2>0:
+          e=max([abs(ipart.x),abs(ipart.y),abs(ipart.z),
+                 abs(jpart.x),abs(jpart.y),abs(jpart.z)])/dr2**0.5
+          if e>err: err=e
+      result.append(err)       
+    return result
+
+def pickled_error_estimator(iparts,jparts):
+  return _error_estimator(iparts,cPickle.loads(jparts))
+def pickled2_error_estimator(iparts,jparts):
+  return _error_estimator(cPickle.loads(iparts),cPickle.loads(jparts))
+
+def error_estimator(iparts,jparts):
+  result=pproc.evaluate2(_error_estimator, iparts, jparts)
+  err=0
+  for e in result:
+    if e>err: err=e
+  return err
+
 def global_timestep(parts):
   return reduce(lambda x,y: min(x,y.timestep),parts,max_timestep)
       
@@ -425,7 +453,7 @@ class bulirschStoer(object):
     while error/dt > self.target_error:
       j=j+1
       if j>self.jmax:
-        print "fail",dt,error,self.target_error,mp.dps
+        print "fail",float(error/dt),dt,float(error),float(self.target_error),mp.dps,self.clevel
         del jline,j1line
         self.evolve_BS(parts,dt/2)
         self.evolve_BS(parts,dt/2)
@@ -451,7 +479,7 @@ class bulirschStoer(object):
         error=self.error_function(jline[-1],j1line[-1])
 #        error=self.error_function(jline[-1],jline[-2])
       if j==self.fixed_j:
-        break
+        break        
     parts[:]=jline[-1]
 #    print 'error:', error,error/dt
     
@@ -477,6 +505,7 @@ class bulirschStoer(object):
       self.evolve_adapt(parts,dt/2,calctimestep=False)
       self.evolve_adapt(parts,dt/2,calctimestep=True)
     else:
+#      print "local error:",float(error_estimator(parts,parts))
       self.evolve_BS(parts,dt)
     self.clevel-=1  
 
@@ -493,8 +522,8 @@ class default_BS(object):
     self.kwargs=kwargs
   def commit_particles(self):
     mp.set_dps(self.initial_dps)    
-    while -mp.log10(self.target_error) > mp.dps - self.dps_safety:
-      mp.set_dps(2*mp.dps)
+    if int(-mp.log10(self.target_error)) > mp.dps - self.dps_safety:
+      mp.set_dps(-mp.log10(self.target_error)+self.dps_safety)
       print "(re)setting, target error:",float(-mp.log10(self.target_error)),
       print "digits:",mp.dps
     self.particles=copy_particles(self.particles)
