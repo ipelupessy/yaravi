@@ -11,7 +11,7 @@ import itertools
 
 import mp_integrator
 from mp_integrator import bulirschStoer,particle,total_energy#,error_controlled_BS
-from mp_integrator import Local_Processor,pp_Processor,AmuseProcessor,MultiProcessor,Processor
+from nbody_processors import Local_Processor,pp_Processor,AmuseProcessor,MultiProcessor,Processor
 
 def plummer(N):
     from amuse.ic.plummer import new_plummer_model
@@ -107,7 +107,7 @@ def check_BS_test(Ns=None):
   if Ns is None: Ns=results.keys()
   check=True
   for N in Ns:
-    for p in ["multi","amuse","pp","local","proc"]:
+    for p in ["multi","amuse","local","proc"]:
         h=BS_test(N=N,processor=p,dps=dps)
         hr=h.__repr__()
         if hr.find(results[N][:dps-5])>=0:
@@ -127,7 +127,7 @@ def check_BS_test_long(Ns=None):
   if Ns is None: Ns=results.keys()
   check=True
   for N in Ns:
-    for p in ["multi","amuse","pp","local","proc"]:
+    for p in ["multi","amuse","local","proc"]:
         h=BS_test(N=N,processor=p,dps=dps,tend=1.,prec='1.e-32',res="x")
         hr=h.__repr__()
         if hr.find(results[N][:dps-5])>=0:
@@ -250,7 +250,7 @@ def check_kick(Ns=None):
     check=True
     if Ns is None: Ns=results.keys()
     for N in Ns:
-      for p in ["multi","amuse","pp","local","proc"]:
+      for p in ["multi","amuse","local","proc"]:
         h=time_kick(N=N,processor=p,dps=dps)
         hr=h.__repr__()
         if hr.find(results[N])>=0:

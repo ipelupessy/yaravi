@@ -1,6 +1,6 @@
 import mp
 import mp_integrator
-from mp_integrator import Local_Processor, MultiProcessor,AmuseProcessor,pp_Processor
+from nbody_processors import Local_Processor, MultiProcessor,AmuseProcessor,pp_Processor
 import operator
 
 from amuse.community import *
